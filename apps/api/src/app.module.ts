@@ -33,9 +33,11 @@ import { EventRegistration } from './event-registrations/event-registration.enti
         const databaseUrl = process.env.DATABASE_URL;
 
         if (process.env.NODE_ENV === 'production' && !databaseUrl) {
+          console.error('Production startup configuration: DATABASE_URL is missing.');
           throw new Error('DATABASE_URL must be configured in production.');
         }
         if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+          console.error('Production startup configuration: JWT_SECRET is missing.');
           throw new Error('JWT_SECRET must be configured in production.');
         }
 

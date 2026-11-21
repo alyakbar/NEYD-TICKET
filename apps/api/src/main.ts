@@ -4,6 +4,12 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  console.info('API startup configuration:', {
+    databaseUrlConfigured: Boolean(process.env.DATABASE_URL),
+    jwtSecretConfigured: Boolean(process.env.JWT_SECRET),
+    corsConfigured: Boolean(process.env.CORS_ORIGINS),
+  });
+
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
 
@@ -38,6 +44,7 @@ async function bootstrap() {
     .map((origin) => origin.trim())
     .filter(Boolean);
   if (process.env.NODE_ENV === 'production' && !allowedOrigins?.length) {
+    console.error('Production startup configuration: CORS_ORIGINS is missing.');
     throw new Error('CORS_ORIGINS must be configured in production.');
   }
   app.enableCors({
