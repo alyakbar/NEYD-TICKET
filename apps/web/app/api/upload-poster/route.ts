@@ -44,10 +44,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Authentication required to upload posters.' }, { status: 401 });
     }
 
-    const apiBaseUrl =
-      process.env.API_SERVER_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      'http://localhost:3001/api';
+    const apiBaseUrl = process.env.API_SERVICE_URL
+      ? `${process.env.API_SERVICE_URL.replace(/\/+$/, '')}/api`
+      : (
+          process.env.API_SERVER_URL ||
+          process.env.NEXT_PUBLIC_API_URL ||
+          'http://localhost:3001/api'
+        );
 
     try {
       const authResponse = await fetch(`${apiBaseUrl.replace(/\/+$/, '')}/auth/me`, {

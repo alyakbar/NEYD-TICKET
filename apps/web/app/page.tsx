@@ -11,7 +11,9 @@ type Event = {
   highlights: string[] | null;
 };
 
-const API_URL = process.env.API_SERVER_URL ?? 'http://localhost:3001/api';
+const API_URL = process.env.API_SERVICE_URL
+  ? `${process.env.API_SERVICE_URL.replace(/\/+$/, '')}/api`
+  : (process.env.API_SERVER_URL ?? 'http://localhost:3001/api');
 
 export const dynamic = 'force-dynamic';
 
