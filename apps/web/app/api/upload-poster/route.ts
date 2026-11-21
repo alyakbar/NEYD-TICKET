@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { put } from '@vercel/blob';
+import { getServerApiUrl } from '../../../lib/api-url';
 
-function detectImageFormat(buffer: Buffer): 'jpg' | 'png' | 'webp' | null {
+function detectImageFormat(buffer: Buffer): 'jpg' | 'png' | 'webp' | 'gif' | null {
   if (buffer.length < 12) return null;
   // JPEG: FF D8 FF
   if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
@@ -34,6 +36,14 @@ function detectImageFormat(buffer: Buffer): 'jpg' | 'png' | 'webp' | null {
   ) {
     return 'webp';
   }
+  if (
+    buffer[0] === 0x47 &&
+    buffer[1] === 0x49 &&
+    buffer[2] === 0x46 &&
+    buffer[3] === 0x38
+  ) {
+    return 'gif';
+  }
   return null;
 }
 
@@ -44,13 +54,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Authentication required to upload posters.' }, { status: 401 });
     }
 
-    const apiBaseUrl = process.env.API_SERVICE_URL
-      ? `${process.env.API_SERVICE_URL.replace(/\/+$/, '')}/api`
-      : (
-          process.env.API_SERVER_URL ||
-          process.env.NEXT_PUBLIC_API_URL ||
-          'http://localhost:3001/api'
-        );
+    const apiBaseUrl = getServerApiUrl();
 
     try {
       const authResponse = await fetch(`${apiBaseUrl.replace(/\/+$/, '')}/auth/me`, {
@@ -90,12 +94,26 @@ export async function POST(req: NextRequest) {
     const detectedExt = detectImageFormat(buffer);
     if (!detectedExt) {
       return NextResponse.json(
-        { message: 'Invalid file contents. Only authentic JPEG, PNG, or WEBP images are accepted.' },
+        { message: 'Invalid file contents. Only authentic JPEG, PNG, WEBP, or GIF images are accepted.' },
         { status: 400 },
       );
     }
 
     const filename = `poster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${detectedExt}`;
+    if (process.env.NODE_ENV === 'production') {
+      if (!process.env.BLOB_READ_WRITE_TOKEN) {
+        return NextResponse.json({
+          message: 'Poster uploads are not configured. Add BLOB_READ_WRITE_TOKEN in Vercel environment variables.',
+        }, { status: 503 });
+      }
+      const blob = await put(`posters/${filename}`, bytes, {
+        access: 'public',
+        contentType: file.type,
+        addRandomSuffix: false,
+      });
+      return NextResponse.json({ url: blob.url });
+    }
+
     const basePath = process.cwd().endsWith('apps/web')
       ? process.cwd()
       : path.join(process.cwd(), 'apps/web');

@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 
 export const EVENT_POSTER_HOSTNAME = 'hosting.alsawwirhub.com';
+export const VERCEL_BLOB_HOSTNAME_SUFFIX = '.public.blob.vercel-storage.com';
 
 export function normalizeEventPosterUrl(value?: string | null): string | null {
   const posterUrl = value?.trim();
@@ -26,7 +27,10 @@ export function normalizeEventPosterUrl(value?: string | null): string | null {
 
   if (
     parsedUrl.protocol !== 'https:' ||
-    parsedUrl.hostname.toLowerCase() !== EVENT_POSTER_HOSTNAME ||
+    (
+      parsedUrl.hostname.toLowerCase() !== EVENT_POSTER_HOSTNAME &&
+      !parsedUrl.hostname.toLowerCase().endsWith(VERCEL_BLOB_HOSTNAME_SUFFIX)
+    ) ||
     parsedUrl.username ||
     parsedUrl.password ||
     parsedUrl.port ||
@@ -35,7 +39,7 @@ export function normalizeEventPosterUrl(value?: string | null): string | null {
     parsedUrl.pathname === '/'
   ) {
     throw new BadRequestException(
-      `The poster must be a public HTTPS image URL on ${EVENT_POSTER_HOSTNAME}, without query parameters.`,
+      'The poster must be a public HTTPS image URL, without credentials or query parameters.',
     );
   }
 

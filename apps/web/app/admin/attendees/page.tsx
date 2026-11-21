@@ -1,16 +1,15 @@
 'use client';
 
 import { FormEvent, Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { getBrowserApiUrl } from '../../../lib/api-url';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ?? (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
+const API_URL = getBrowserApiUrl();
 
 type Attendee = {
   id: string;
   fullName: string;
   email: string;
   phone: string;
-  company?: string | null;
   role?: string | null;
   ticketType?: string;
   expectations?: string | null;
@@ -31,7 +30,6 @@ type AttendeeForm = {
   fullName: string;
   email: string;
   phone: string;
-  company: string;
   role: string;
   ticketType: string;
   expectations: string;
@@ -42,7 +40,6 @@ const emptyForm: AttendeeForm = {
   fullName: '',
   email: '',
   phone: '',
-  company: '',
   role: '',
   ticketType: 'General Admission',
   expectations: '',
@@ -132,7 +129,6 @@ export default function EventAttendeesPage() {
       fullName: attendee.fullName,
       email: attendee.email,
       phone: attendee.phone,
-      company: attendee.company ?? '',
       role: attendee.role ?? '',
       ticketType: attendee.ticketType ?? 'General Admission',
       expectations: attendee.expectations ?? '',
@@ -271,7 +267,6 @@ export default function EventAttendeesPage() {
                       <tr className="border-t border-slate-800 text-slate-200">
                         <td className="px-4 py-3">
                           <div className="font-medium text-white">{attendee.fullName}</div>
-                          {attendee.company && <div className="text-xs text-slate-400">{attendee.company}</div>}
                           {attendee.role && <div className="text-xs text-slate-500">{attendee.role}</div>}
                         </td>
                         <td className="px-4 py-3">
@@ -318,9 +313,6 @@ export default function EventAttendeesPage() {
                                 </label>
                                 <label className="text-sm text-slate-300">Ticket type
                                   <input required maxLength={80} value={form.ticketType} onChange={(event) => setForm({ ...form, ticketType: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white" />
-                                </label>
-                                <label className="text-sm text-slate-300">Company
-                                  <input maxLength={120} value={form.company} onChange={(event) => setForm({ ...form, company: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white" />
                                 </label>
                                 <label className="text-sm text-slate-300">Role
                                   <input maxLength={120} value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white" />

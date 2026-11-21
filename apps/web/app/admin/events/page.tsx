@@ -2,9 +2,9 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { getPublicEventPosterUrl } from '../../../lib/event-poster-url';
+import { getBrowserApiUrl } from '../../../lib/api-url';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ?? (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
+const API_URL = getBrowserApiUrl();
 
 type EventRecord = {
   id: string;
@@ -40,6 +40,17 @@ const emptyForm: EventForm = {
   posterUrl: '',
   highlights: '',
 };
+
+function toDateInputValue(value: string | null): string {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const year = parsed.getUTCFullYear();
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 async function responseError(response: Response): Promise<string> {
   const body = await response.json().catch(() => ({}));
@@ -118,8 +129,8 @@ export default function AdminEventsPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('Please select a PNG, JPEG, or WEBP image.');
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      setError('Please select a PNG, JPEG, WEBP, or GIF image.');
       return;
     }
     if (file.size > 4 * 1024 * 1024) {
@@ -159,7 +170,7 @@ export default function AdminEventsPage() {
     setForm({
       slug: event.slug,
       title: event.title,
-      date: event.date ?? '',
+      date: toDateInputValue(event.date),
       location: event.location ?? '',
       priceKsh: String(event.priceKsh),
       description: event.description ?? '',
@@ -298,7 +309,7 @@ export default function AdminEventsPage() {
                 <input required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" value={form.slug} onChange={(event) => setForm({ ...form, slug: event.target.value })} placeholder="community-summit" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
               </label>
               <label className="text-sm text-slate-300">Date
-                <input value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} placeholder="24 October 2026" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+                <input type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
               </label>
               <label className="text-sm text-slate-300">Location
                 <input maxLength={255} value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} placeholder="Venue, city" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
@@ -316,7 +327,7 @@ export default function AdminEventsPage() {
                     {uploading ? 'Uploading…' : '📁 Upload image file'}
                     <input
                       type="file"
-                      accept="image/png,image/jpeg,image/webp"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
                       onChange={handleFileUpload}
                       disabled={uploading}
                       className="hidden"
@@ -329,11 +340,11 @@ export default function AdminEventsPage() {
                   maxLength={2048}
                   value={form.posterUrl}
                   onChange={(event) => setForm({ ...form, posterUrl: event.target.value })}
-                  placeholder="/posters/neyd-event-poster.jpg or https://hosting.alsawwirhub.com/..."
+                  placeholder="/posters/neyd-event-poster.jpg or https://..."
                   className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
                 />
                 <span className="mt-1 block text-xs text-slate-400">
-                  Upload a PNG, JPEG, or WEBP image (up to 4 MB), or enter a public HTTPS URL.
+                  Upload a PNG, JPEG, WEBP, or GIF image (up to 4 MB), or enter a public hosted HTTPS URL.
                 </span>
                 {formPosterUrl && (
                   <div className="mt-3">

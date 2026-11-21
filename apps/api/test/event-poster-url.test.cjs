@@ -12,6 +12,10 @@ test('accepts and normalizes a public HTTPS poster URL from the configured host'
     'https://hosting.alsawwirhub.com/events/summit-poster.webp',
   );
   assert.equal(
+    normalizeEventPosterUrl('https://store.public.blob.vercel-storage.com/posters/event.jpg'),
+    'https://store.public.blob.vercel-storage.com/posters/event.jpg',
+  );
+  assert.equal(
     normalizeEventPosterUrl('/posters/neyd-event-poster.jpg'),
     '/posters/neyd-event-poster.jpg',
   );

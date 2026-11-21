@@ -20,6 +20,12 @@
   },
   "rewrites": [
     {
+      "source": "/api/upload-poster",
+      "destination": {
+        "service": "web"
+      }
+    },
+    {
       "source": "/api/(.*)",
       "destination": {
         "service": "api"

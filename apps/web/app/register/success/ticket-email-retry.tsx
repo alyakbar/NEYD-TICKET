@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { getBrowserApiUrl } from '../../../lib/api-url';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ?? (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
+const API_URL = getBrowserApiUrl();
 
 export default function TicketEmailRetry({ paymentId }: { paymentId: string }) {
   const [isSending, setIsSending] = useState(false);

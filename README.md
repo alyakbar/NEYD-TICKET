@@ -114,7 +114,7 @@ The ALB routes `/api/*` to NestJS and all other paths to the Next.js dashboard; 
 
 The repository includes a root [vercel.json](/home/non/projects/NEYD_TICKECT/vercel.json) with separate `api` and `web` services. `/api/*` is routed to the NestJS service and all other paths to Next.js. The web service receives the API service's internal base URL through `API_SERVICE_URL`; browser requests continue to use same-origin `/api`.
 
-Before deploying, configure production secrets and environment variables in the Vercel project, including `DATABASE_URL`, `JWT_SECRET`, and the Daraja/SMTP variables documented above. Set `CORS_ORIGINS` to explicit allowed origins for custom domains; Vercel deployments fall back to `VERCEL_PROJECT_PRODUCTION_URL` or `VERCEL_URL`. Do not set `API_SERVICE_URL` manually because Vercel injects it through the service binding.
+Before deploying, configure production secrets and environment variables in the Vercel project, including `DATABASE_URL`, `JWT_SECRET`, `BLOB_READ_WRITE_TOKEN`, and the Daraja/SMTP variables documented above. Create a Vercel Blob store and add its read/write token for admin poster uploads. Set `CORS_ORIGINS` to explicit allowed origins for custom domains; Vercel deployments fall back to `VERCEL_PROJECT_PRODUCTION_URL` or `VERCEL_URL`. Do not set `API_SERVICE_URL` manually because Vercel injects it through the service binding.
 
 ## Local Docker builds
 

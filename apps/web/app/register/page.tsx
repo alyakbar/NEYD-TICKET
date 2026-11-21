@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { getPublicEventPosterUrl } from '../../lib/event-poster-url';
+import { getBrowserApiUrl } from '../../lib/api-url';
 
 type EventChoice = {
   slug: string;
@@ -18,9 +19,8 @@ type RegistrationForm = {
   fullName: string;
   email: string;
   phone: string;
-  company: string;
   role: string;
-  ticketType: 'General Admission' | 'VIP' | 'Student';
+  ticketType: 'General Admission';
   expectations: string;
   dietaryRequirements: string;
   agree: boolean;
@@ -33,8 +33,7 @@ type PaymentStatus = {
   resultDescription: string | null;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ?? (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
+const API_URL = getBrowserApiUrl();
 const INITIAL_RECONCILIATION_DELAY_MS = 60_000;
 const MAX_RECONCILIATION_DELAY_MS = 5 * 60_000;
 const INITIAL_STATUS_POLL_INTERVAL_MS = 5_000;
@@ -46,7 +45,6 @@ const defaultForm = (): RegistrationForm => ({
   fullName: '',
   email: '',
   phone: '',
-  company: '',
   role: '',
   ticketType: 'General Admission',
   expectations: '',
@@ -390,48 +388,31 @@ export default function RegisterPage() {
                 />
               </label>
 
-              <label className="text-sm text-slate-300">
-                Company / organization
-                <input
-                  value={form.company}
-                  onChange={(event) => handleChange('company', event.target.value)}
-                  className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none placeholder:text-slate-500"
-                  placeholder="NEYD Ltd"
-                />
-              </label>
-
               <label className="text-sm text-slate-300 md:col-span-2">
-                Role / title
+                Role
                 <input
                   value={form.role}
                   onChange={(event) => handleChange('role', event.target.value)}
                   className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none placeholder:text-slate-500"
-                  placeholder="Product Manager, Developer, Partner, Student..."
+                  placeholder="Parent and child or Student"
                 />
               </label>
 
-              <label className="text-sm text-slate-300 md:col-span-2">
-                Ticket type
-                <select
-                  required
-                  value={form.ticketType}
-                  onChange={(event) => handleChange('ticketType', event.target.value as RegistrationForm['ticketType'])}
-                  className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none"
-                >
-                  <option value="General Admission">General Admission</option>
-                  <option value="VIP">VIP</option>
-                  <option value="Student">Student</option>
-                </select>
-              </label>
+              <div className="text-sm text-slate-300 md:col-span-2">
+                <span className="block">Ticket type</span>
+                <div className="mt-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white">
+                  General Admission
+                </div>
+              </div>
 
               <label className="text-sm text-slate-300 md:col-span-2">
-                What are you hoping to get from the event?
+                What do you need from this event?
                 <textarea
                   rows={4}
                   value={form.expectations}
                   onChange={(event) => handleChange('expectations', event.target.value)}
                   className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none placeholder:text-slate-500"
-                  placeholder="I would like to learn about product demos, meet partners, and explore new opportunities."
+                  placeholder="Describe what you need or what you hope to learn."
                 />
               </label>
 

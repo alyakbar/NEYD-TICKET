@@ -1,5 +1,6 @@
 import TicketEmailRetry from './ticket-email-retry';
 import { getPublicEventPosterUrl } from '../../../lib/event-poster-url';
+import { getServerApiUrl } from '../../../lib/api-url';
 
 type RegistrationSuccessPageProps = {
   searchParams: {
@@ -16,8 +17,7 @@ type PaymentStatus = {
   ticketEmailStatus: string | null;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ?? (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
+const API_URL = getServerApiUrl();
 
 export const dynamic = 'force-dynamic';
 
