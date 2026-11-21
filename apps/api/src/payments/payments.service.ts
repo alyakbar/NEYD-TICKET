@@ -635,12 +635,35 @@ export class PaymentsService implements OnModuleInit {
 
   private darajaConfiguration() {
     const { MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_SHORTCODE, MPESA_PASSKEY, MPESA_CALLBACK_BASE_URL, MPESA_CALLBACK_TOKEN } = process.env;
-    if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET || !MPESA_SHORTCODE || !MPESA_PASSKEY || !MPESA_CALLBACK_BASE_URL || !MPESA_CALLBACK_TOKEN) {
+    if (!MPESA_CONSUMER_KEY || !MPESA_CONSUMER_SECRET || !MPESA_SHORTCODE || !MPESA_PASSKEY || MPESA_CALLBACK_TOKEN === undefined) {
       throw new ServiceUnavailableException('M-Pesa is not configured. Set Daraja credentials, callback URL/token, and server-side catalog prices.');
     }
+
+    let callbackBaseUrl = MPESA_CALLBACK_BASE_URL ?? '';
+    if (process.env.NODE_ENV === 'production') {
+      const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+      try {
+        const configuredCallback = new URL(callbackBaseUrl);
+        const isLocalCallback =
+          configuredCallback.hostname === 'localhost' ||
+          configuredCallback.hostname === '127.0.0.1' ||
+          configuredCallback.hostname.endsWith('.trycloudflare.com');
+        if (isLocalCallback && vercelHost) {
+          callbackBaseUrl = `https://${vercelHost}/api/payments/callback`;
+        }
+      } catch {
+        if (vercelHost) {
+          callbackBaseUrl = `https://${vercelHost}/api/payments/callback`;
+        }
+      }
+    }
+    if (!callbackBaseUrl) {
+      throw new ServiceUnavailableException('M-Pesa is not configured. Set MPESA_CALLBACK_BASE_URL and MPESA_CALLBACK_TOKEN.');
+    }
+
     let callbackUrl: URL;
     try {
-      callbackUrl = new URL(MPESA_CALLBACK_BASE_URL);
+      callbackUrl = new URL(callbackBaseUrl);
     } catch {
       throw new ServiceUnavailableException('MPESA_CALLBACK_BASE_URL must be an absolute HTTPS URL.');
     }
@@ -656,7 +679,7 @@ export class PaymentsService implements OnModuleInit {
       consumerSecret: MPESA_CONSUMER_SECRET,
       shortCode: MPESA_SHORTCODE,
       passkey: MPESA_PASSKEY,
-      callbackBaseUrl: MPESA_CALLBACK_BASE_URL,
+      callbackBaseUrl,
       callbackToken: MPESA_CALLBACK_TOKEN,
     };
   }

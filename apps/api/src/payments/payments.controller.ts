@@ -50,6 +50,12 @@ export class PaymentsController {
     return this.paymentsService.reconcileStkPayment(id);
   }
 
+  @Get(':id/reconcile')
+  @Public()
+  reconcileByGet(@Param('id', ParseUUIDPipe) id: string) {
+    return this.paymentsService.reconcileStkPayment(id);
+  }
+
   @Post('callback/:token')
   @Public()
   callback(@Param('token') token: string, @Body() body: unknown) {
