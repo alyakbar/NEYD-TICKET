@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useState } from 'react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+  ?? (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
 
 type Organization = { id: string; name: string };
 type CatalogItem = { code: string; label: string; amountKsh: number; currency: string };

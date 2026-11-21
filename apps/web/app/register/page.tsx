@@ -33,7 +33,8 @@ type PaymentStatus = {
   resultDescription: string | null;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+  ?? (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
 const INITIAL_RECONCILIATION_DELAY_MS = 60_000;
 const MAX_RECONCILIATION_DELAY_MS = 5 * 60_000;
 const INITIAL_STATUS_POLL_INTERVAL_MS = 5_000;
