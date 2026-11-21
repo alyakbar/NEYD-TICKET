@@ -1,0 +1,146 @@
+name: Build and deploy to ECS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'infra/terraform/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy-ecs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECS_CLUSTER: neyd-enterprise-cluster
+      ECS_API_SERVICE: neyd-api-service
+      ECS_WEB_SERVICE: neyd-web-service
+      ECS_API_TASK_FAMILY: neyd-api
+      ECS_WEB_TASK_FAMILY: neyd-web
+      ECS_API_CONTAINER: neyd-api
+      ECS_WEB_CONTAINER: neyd-web
+      ECR_API_REPOSITORY: ${{ vars.ECR_API_REPOSITORY || 'neyd-api' }}
+      ECR_WEB_REPOSITORY: ${{ vars.ECR_WEB_REPOSITORY || 'neyd-web' }}
+      ECS_SUBNET_IDS: ${{ vars.ECS_SUBNET_IDS }}
+      ECS_SECURITY_GROUP: ${{ vars.ECS_SECURITY_GROUP }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr-login
+
+      - name: Build and push API image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          docker build --platform linux/amd64 -f apps/api/Dockerfile \
+            -t "$REGISTRY/$ECR_API_REPOSITORY:$GITHUB_SHA" \
+            -t "$REGISTRY/$ECR_API_REPOSITORY:latest" .
+          docker push "$REGISTRY/$ECR_API_REPOSITORY:$GITHUB_SHA"
+          docker push "$REGISTRY/$ECR_API_REPOSITORY:latest"
+
+      - name: Build and push dashboard image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          docker build --platform linux/amd64 -f apps/web/Dockerfile \
+            -t "$REGISTRY/$ECR_WEB_REPOSITORY:$GITHUB_SHA" \
+            -t "$REGISTRY/$ECR_WEB_REPOSITORY:latest" .
+          docker push "$REGISTRY/$ECR_WEB_REPOSITORY:$GITHUB_SHA"
+          docker push "$REGISTRY/$ECR_WEB_REPOSITORY:latest"
+
+      - name: Render API task definition
+        env:
+          API_IMAGE: ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_API_REPOSITORY || 'neyd-api' }}:${{ github.sha }}
+        run: |
+          aws ecs describe-task-definition --task-definition "$ECS_API_TASK_FAMILY" \
+            --query taskDefinition > api-task-definition.json
+          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+            api-task-definition.json > api-task-definition-clean.json
+          jq --arg image "$API_IMAGE" --arg container "$ECS_API_CONTAINER" \
+            '(.containerDefinitions[] | select(.name == $container) | .image) = $image' \
+            api-task-definition-clean.json > api-task-definition-rendered.json
+          API_TASK_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://api-task-definition-rendered.json \
+            --query taskDefinition.taskDefinitionArn --output text)
+          echo "api-task-arn=$API_TASK_ARN" >> "$GITHUB_OUTPUT"
+        id: api-task
+
+      - name: Render dashboard task definition
+        env:
+          WEB_IMAGE: ${{ steps.ecr-login.outputs.registry }}/${{ vars.ECR_WEB_REPOSITORY || 'neyd-web' }}:${{ github.sha }}
+        run: |
+          aws ecs describe-task-definition --task-definition "$ECS_WEB_TASK_FAMILY" \
+            --query taskDefinition > web-task-definition.json
+          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+            web-task-definition.json > web-task-definition-clean.json
+          jq --arg image "$WEB_IMAGE" --arg container "$ECS_WEB_CONTAINER" \
+            '(.containerDefinitions[] | select(.name == $container) | .image) = $image' \
+            web-task-definition-clean.json > web-task-definition-rendered.json
+          WEB_TASK_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://web-task-definition-rendered.json \
+            --query taskDefinition.taskDefinitionArn --output text)
+          echo "web-task-arn=$WEB_TASK_ARN" >> "$GITHUB_OUTPUT"
+        id: web-task
+
+      - name: Run PostgreSQL migrations
+        env:
+          API_TASK_ARN: ${{ steps.api-task.outputs.api-task-arn }}
+        run: |
+          if [ -z "$ECS_SUBNET_IDS" ] || [ -z "$ECS_SECURITY_GROUP" ]; then
+            echo "Configure ECS_SUBNET_IDS and ECS_SECURITY_GROUP with the Terraform outputs."
+            exit 1
+          fi
+          NETWORK_CONFIG=$(jq -cn --arg subnets "$ECS_SUBNET_IDS" --arg sg "$ECS_SECURITY_GROUP" \
+            '{awsvpcConfiguration:{subnets:($subnets|split(",")),securityGroups:[$sg],assignPublicIp:"DISABLED"}}')
+          OVERRIDES=$(jq -cn --arg name "$ECS_API_CONTAINER" \
+            '{containerOverrides:[{name:$name,command:["node","apps/api/dist/scripts/migrate.js"]}]}')
+          RESPONSE=$(aws ecs run-task --cluster "$ECS_CLUSTER" --task-definition "$API_TASK_ARN" \
+            --launch-type FARGATE --network-configuration "$NETWORK_CONFIG" --overrides "$OVERRIDES")
+          TASK_ARN=$(echo "$RESPONSE" | jq -r '.tasks[0].taskArn // empty')
+          if [ -z "$TASK_ARN" ]; then
+            echo "$RESPONSE" | jq '.failures'
+            exit 1
+          fi
+          aws ecs wait tasks-stopped --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+          EXIT_CODE=$(aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+            --query "tasks[0].containers[?name=='$ECS_API_CONTAINER'].exitCode | [0]" --output text)
+          if [ "$EXIT_CODE" != "0" ]; then
+            aws ecs describe-tasks --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN" \
+              --query 'tasks[0].containers[].{name:name,exitCode:exitCode,reason:reason}' --output table
+            exit 1
+          fi
+
+      - name: Deploy API and dashboard
+        env:
+          API_TASK_ARN: ${{ steps.api-task.outputs.api-task-arn }}
+          WEB_TASK_ARN: ${{ steps.web-task.outputs.web-task-arn }}
+        run: |
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_API_SERVICE" \
+            --task-definition "$API_TASK_ARN" --desired-count 2
+          aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_WEB_SERVICE" \
+            --task-definition "$WEB_TASK_ARN" --desired-count 2
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" \
+            --services "$ECS_API_SERVICE" "$ECS_WEB_SERVICE"

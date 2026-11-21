@@ -1,0 +1,104 @@
+{
+  "planHash": "5a217b4dbaf4ff407652eebd62513646ef03f16bb1c67fe5259eef786d1f4608",
+  "phase": "standalone",
+  "recordedAtUtc": "2026-11-19T19:07:11.8084686Z",
+  "retryCount": 1,
+  "resetBaseline": false,
+  "complete": true,
+  "result": {
+    "setupSucceeded": true,
+    "setupDurationMs": 0,
+    "setupFailureOutput": null,
+    "assertions": [
+      {
+        "name": "api-build",
+        "kind": "process",
+        "verificationMethod": "exit-code",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\n\u003E @neyd/api@1.0.0 build\n\u003E nest build\n\n",
+        "durationMs": 8119
+      },
+      {
+        "name": "tests-pass",
+        "kind": "process",
+        "verificationMethod": "test-results",
+        "passed": true,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 0,
+        "outputSample": "\n\u003E @neyd/api@1.0.0 test\n\u003E npm run build \u0026\u0026 node --test --test-reporter=tap test/*.test.cjs\n\n\n\u003E @neyd/api@1.0.0 build\n\u003E nest build\n\nTAP version 13\n# Subtest: sends the paid ticket PDF through the configured pooled SMTP transport\nok 1 - sends the paid ticket PDF through the configured pooled SMTP transport\n  ---\n  duration_ms: 4340.723965\n  type: \u0027test\u0027\n  ...\n1..1\n# tests 1\n# suites 0\n# pass 1\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 4695.156268\n",
+        "durationMs": 13507,
+        "testResults": {
+          "testFramework": "unknown",
+          "runnerDetectedFrom": "none",
+          "testsTotal": 0,
+          "testsPassed": 0,
+          "testsFailed": 0,
+          "testsSkipped": 0,
+          "parseFailed": true
+        }
+      },
+      {
+        "name": "api-health-200",
+        "kind": "http-probe",
+        "verificationMethod": "http-status",
+        "passed": false,
+        "timedOut": false,
+        "skipped": false,
+        "skippedReason": null,
+        "exitCode": 1,
+        "outputSample": "server exited before responding (exit=1)\n--- server output ---\n\n\u003E @neyd/api@1.0.0 start\n\u003E node dist/main\n\n\u001B[32m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:47 PM \u001B[32m    LOG\u001B[39m \u001B[38;5;3m[NestFactory] \u001B[39m\u001B[32mStarting Nest application...\u001B[39m\n\u001B[32m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:47 PM \u001B[32m    LOG\u001B[39m \u001B[38;5;3m[InstanceLoader] \u001B[39m\u001B[32mTypeOrmModule dependencies initialized\u001B[39m\u001B[38;5;3m \u002B160ms\u001B[39m\n\u001B[32m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:47 PM \u001B[32m    LOG\u001B[39m \u001B[38;5;3m[InstanceLoader] \u001B[39m\u001B[32mHealthModule dependencies initialized\u001B[39m\u001B[38;5;3m \u002B1ms\u001B[39m\n\u001B[32m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:47 PM \u001B[32m    LOG\u001B[39m \u001B[38;5;3m[InstanceLoader] \u001B[39m\u001B[32mConfigHostModule dependencies initialized\u001B[39m\u001B[38;5;3m \u002B1ms\u001B[39m\n\u001B[32m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:47 PM \u001B[32m    LOG\u001B[39m \u001B[38;5;3m[InstanceLoader] \u001B[39m\u001B[32mAppModule dependencies initialized\u001B[39m\u001B[38;5;3m \u002B0ms\u001B[39m\n\u001B[32m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:47 PM \u001B[32m    LOG\u001B[39m \u001B[38;5;3m[InstanceLoader] \u001B[39m\u001B[32mAuthorizationModule dependencies initialized\u001B[39m\u001B[38;5;3m \u002B0ms\u001B[39m\n\u001B[32m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:47 PM \u001B[32m    LOG\u001B[39m \u001B[38;5;3m[InstanceLoader] \u001B[39m\u001B[32mConfigModule dependencies initialized\u001B[39m\u001B[38;5;3m \u002B0ms\u001B[39m\n\u001B[31m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:47 PM \u001B[31m  ERROR\u001B[39m \u001B[38;5;3m[TypeOrmModule] \u001B[39m\u001B[31mUnable to connect to the database. Retrying (1)...\u001B[39m\nDataTypeNotSupportedError: Data type \u0022timestamptz\u0022 in \u0022EventRegistration.ticketEmailAttemptedAt\u0022 is not supported by \u0022sqlite\u0022 database.\n    at /home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:89:27\n    at Array.forEach (\u003Canonymous\u003E)\n    at EntityMetadataValidator.validate (/home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:86:18)\n    at /home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:38:58\n    at Array.forEach (\u003Canonymous\u003E)\n    at EntityMetadataValidator.validateMany (/home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:38:25)\n    at DataSource.buildMetadatas (/home/non/projects/NEYD_TICKECT/node_modules/typeorm/data-source/DataSource.js:493:33)\n    at async DataSource.initialize (/home/non/projects/NEYD_TICKECT/node_modules/typeorm/data-source/DataSource.js:145:13)\n\u001B[31m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:50 PM \u001B[31m  ERROR\u001B[39m \u001B[38;5;3m[TypeOrmModule] \u001B[39m\u001B[31mUnable to connect to the database. Retrying (2)...\u001B[39m\nDataTypeNotSupportedError: Data type \u0022timestamptz\u0022 in \u0022EventRegistration.ticketEmailAttemptedAt\u0022 is not supported by \u0022sqlite\u0022 database.\n    at /home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:89:27\n    at Array.forEach (\u003Canonymous\u003E)\n    at EntityMetadataValidator.validate (/home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:86:18)\n    at /home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:38:58\n    at Array.forEach (\u003Canonymous\u003E)\n    at EntityMetadataValidator.validateMany (/home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:38:25)\n    at DataSource.buildMetadatas (/home/non/projects/NEYD_TICKECT/node_modules/typeorm/data-source/DataSource.js:493:33)\n    at async DataSource.initialize (/home/non/projects/NEYD_TICKECT/node_modules/typeorm/data-source/DataSource.js:145:13)\n\u001B[31m[Nest] 48043  - \u001B[39m11/19/2026, 10:06:53 PM \u001B[31m  ERROR\u001B[39m \u001B[38;5;3m[TypeOrmModule] \u001B[39m\u001B[31mUnable to connect to the database. Retrying (3)...\u001B[39m\nDataTypeNotSupportedError: Data type \u0022timestamptz\u0022 in \u0022EventRegistration.ticketEmailAttemptedAt\u0022 is not supported by \u0022sqlite\u0022 database.\n    at /home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:89:27\n    at Array.forEach (\u003Canonymous\u003E)\n    at EntityMetadataValidator.validate (/home/non/projects/NEYD_TICKECT/node_modules/typeorm/metadata-builder/EntityMetadataValidator.js:86:18)\n    at /home/non/\n\u2026[truncated]",
+        "durationMs": 29698
+      }
+    ],
+    "executions": [
+      {
+        "source": "api-build",
+        "resolvedExecutable": "/home/non/.nvm/versions/node/v24.20.0/bin/npm",
+        "args": [
+          "run",
+          "build"
+        ],
+        "cwd": "/home/non/projects/NEYD_TICKECT/apps/api",
+        "env": {},
+        "prependPath": [],
+        "platform": "linux"
+      },
+      {
+        "source": "tests-pass",
+        "resolvedExecutable": "/home/non/.nvm/versions/node/v24.20.0/bin/npm",
+        "args": [
+          "test"
+        ],
+        "cwd": "/home/non/projects/NEYD_TICKECT/apps/api",
+        "env": {},
+        "prependPath": [],
+        "platform": "linux"
+      },
+      {
+        "source": "api-health-200",
+        "resolvedExecutable": "/home/non/.nvm/versions/node/v24.20.0/bin/npm",
+        "args": [
+          "run",
+          "start"
+        ],
+        "cwd": "/home/non/projects/NEYD_TICKECT/apps/api",
+        "env": {
+          "DATABASE_URL": "",
+          "DATABASE_SSL": "false",
+          "JWT_SECRET": "\u003Credacted\u003E",
+          "NODE_ENV": "test",
+          "CORS_ORIGINS": "http://localhost:3000",
+          "PORT": "3013"
+        },
+        "prependPath": [],
+        "platform": "linux"
+      }
+    ]
+  }
+}

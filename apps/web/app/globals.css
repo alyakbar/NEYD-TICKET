@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --ney-green: #3a6b4a;
+  --ney-green-dark: #2a4e36;
+  --ney-green-light: #4f8962;
+  --ney-blue: #3a9cb8;
+  --ney-blue-light: #5cb8d4;
+  --ney-sand: #d4a574;
+  --ney-sand-light: #e8c49a;
+  --ney-ivory: #f7f3ee;
+  --ney-ink: #1a1a1a;
+  --ney-ink-mid: #4a4a4a;
+}
+
+html {
+  background: var(--ney-green-dark);
+}
+
+body {
+  margin: 0;
+  font-family: Jost, Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(circle at top, rgba(58, 156, 184, 0.16), transparent 30%),
+    var(--ney-green-dark);
+  color: var(--ney-ivory);
+}

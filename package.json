@@ -1,0 +1,17 @@
+{
+  "name": "neyd-ticketing-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @neyd/api && npm run build --workspace @neyd/web",
+    "db:migrate": "npm run db:migrate --workspace @neyd/api",
+    "db:seed": "npm run db:seed --workspace @neyd/api",
+    "dev": "npm run dev --workspace @neyd/api"
+  },
+  "dependencies": {
+    "@neon/config": "^1.14.2",
+    "@neon/env": "^2.1.5"
+  }
+}

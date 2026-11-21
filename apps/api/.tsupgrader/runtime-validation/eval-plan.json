@@ -1,0 +1,41 @@
+{
+  "projectType": "server",
+  "assertions": [
+    {
+      "name": "api-build",
+      "kind": "process",
+      "command": "npm",
+      "args": ["run", "build"],
+      "verificationMethod": "exit-code",
+      "expected": "0",
+      "timeoutSeconds": 180
+    },
+    {
+      "name": "tests-pass",
+      "kind": "process",
+      "command": "npm",
+      "args": ["test"],
+      "verificationMethod": "test-results",
+      "expected": "0",
+      "timeoutSeconds": 300
+    },
+    {
+      "name": "api-health-200",
+      "kind": "http-probe",
+      "startCommand": "npm",
+      "startArgs": ["run", "start"],
+      "env": {
+        "DATABASE_URL": "",
+        "DATABASE_SSL": "false",
+        "JWT_SECRET": "runtime-validation-only-secret",
+        "NODE_ENV": "test",
+        "CORS_ORIGINS": "http://localhost:3000",
+        "PORT": "3013"
+      },
+      "url": "http://localhost:3013/api/health",
+      "verificationMethod": "http-status",
+      "expected": "200",
+      "timeoutSeconds": 90
+    }
+  ]
+}
