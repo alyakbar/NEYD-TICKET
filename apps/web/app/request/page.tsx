@@ -133,9 +133,9 @@ export default function PublicRequestPage() {
   }
 
   return (
-    <main className="min-h-screen px-5 py-10 text-slate-100">
+    <main id="main-content" className="min-h-screen px-4 py-6 text-slate-100 sm:px-5 sm:py-10">
       <div className="mx-auto max-w-3xl">
-        <header className="mb-7">
+        <header className="mb-6 sm:mb-7">
           <a href="/" className="text-sm text-sky-300 hover:text-sky-200">← NEYD Service Desk</a>
           <p className="mt-6 text-xs uppercase tracking-[0.22em] text-sky-400">Public checkout</p>
           <h1 className="mt-2 text-3xl font-bold text-white">Submit a request and pay</h1>
@@ -148,7 +148,7 @@ export default function PublicRequestPage() {
             Checkout is not available until the server has a priced catalog and Daraja M-Pesa credentials configured. No payment amount is accepted from the browser.
           </div>
         ) : (
-          <form onSubmit={submit} className="space-y-5 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+          <form onSubmit={submit} className="space-y-5 rounded-2xl border border-[#3d5d4b] bg-[#193324] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.18)] sm:p-6">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="text-sm text-slate-300">Organization
                 <select required value={organizationId} onChange={(event) => setOrganizationId(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white">
@@ -183,7 +183,7 @@ export default function PublicRequestPage() {
               <textarea required rows={4} value={description} onChange={(event) => setDescription(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
             </label>
             {selectedItem && <p className="rounded-lg bg-slate-950 p-3 text-sm text-slate-300">Total to pay: <strong className="text-white">KES {selectedItem.amountKsh.toLocaleString()}</strong></p>}
-            <button disabled={loading || organizations.length === 0} className="w-full rounded-lg bg-sky-400 px-4 py-3 font-semibold text-slate-950 disabled:opacity-50">
+            <button disabled={loading || organizations.length === 0} className="w-full rounded-lg bg-[#e8c49a] px-4 py-3 font-semibold text-[#12261b] disabled:opacity-50 enabled:hover:bg-[#d4a574]">
               {loading ? 'Starting checkout…' : 'Submit and pay with M-Pesa'}
             </button>
             <p className="text-xs text-slate-500">The server controls the price. Your ticket is queued for processing after successful payment.</p>

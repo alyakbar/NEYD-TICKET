@@ -14,6 +14,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        <a
+          href="#main-content"
+          className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-lg bg-[#e8c49a] px-4 py-3 font-semibold text-[#12261b] focus:translate-y-0"
+        >
+          Skip to content
+        </a>
         <SiteNavigation />
         {children}
       </body>

@@ -125,8 +125,8 @@ export default function Home() {
 
   if (!operator || !token) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-6 py-12 text-slate-100">
-        <form onSubmit={signIn} className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
+      <main id="main-content" className="flex min-h-screen items-center justify-center px-4 py-8 text-slate-100 sm:px-6 sm:py-12">
+        <form onSubmit={signIn} className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-2xl sm:p-8">
           <p className="text-xs uppercase tracking-[0.22em] text-sky-400">NEYD Enterprise</p>
           <h1 className="mt-3 text-2xl font-bold text-white">Operator sign in</h1>
           <p className="mt-2 text-sm text-slate-400">Customers do not need an account. Sign in here to manage tickets.</p>
@@ -153,19 +153,19 @@ export default function Home() {
   const canAssign = ['super-administrator', 'organization-admin', 'it-director', 'department-head', 'it-support-manager', 'it-support-agent'].includes(role);
 
   return (
-    <main className="min-h-screen px-6 py-10 text-slate-100">
+    <main id="main-content" className="min-h-screen px-4 py-6 text-slate-100 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#3d5d4b] bg-[#193324]/95 p-4 shadow-[0_18px_44px_rgba(0,0,0,0.16)] sm:mb-8 sm:p-5">
           <div>
             <p className="text-xs uppercase tracking-[0.22em] text-sky-400">NEYD Enterprise</p>
-            <h1 className="mt-2 text-3xl font-bold text-white">IT Service Management</h1>
+            <h1 className="mt-2 text-2xl font-bold text-white sm:text-3xl">IT Service Management</h1>
             <p className="mt-1 text-sm text-slate-400">{operator.email} · {operator.role}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <a href="/admin/events" className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">Manage events</a>
-            <a href="/admin/attendees" className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">Event attendees</a>
-            <a href="/request" className="rounded-xl bg-sky-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-300">Public request form</a>
-            <button onClick={signOut} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">Sign out</button>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            <a href="/admin/events" className="rounded-xl border border-[#4f715c] px-4 py-2 text-sm text-[#f7f3ee] hover:bg-[#203f2e]">Manage events</a>
+            <a href="/admin/attendees" className="rounded-xl border border-[#4f715c] px-4 py-2 text-sm text-[#f7f3ee] hover:bg-[#203f2e]">Event attendees</a>
+            <a href="/request" className="rounded-xl bg-[#e8c49a] px-4 py-2 text-sm font-semibold text-[#12261b] hover:bg-[#d4a574]">Public request form</a>
+            <button onClick={signOut} className="rounded-xl border border-[#4f715c] px-4 py-2 text-sm text-[#f7f3ee] hover:bg-[#203f2e]">Sign out</button>
           </div>
         </header>
 
@@ -184,8 +184,8 @@ export default function Home() {
           ))}
         </section>
 
-        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-5">
-          <div className="mb-5 flex items-center justify-between">
+        <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:mt-8 sm:p-5">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-white">Ticket queue</h2>
               <p className="mt-1 text-sm text-slate-400">Approve requests and assign approved tickets to operators in your organization.</p>
@@ -217,7 +217,7 @@ export default function Home() {
                   </div>
                   {canAssign && ticket.status === 'approved' && (
                     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-800 pt-4">
-                      <input type="email" placeholder="Operator email" aria-label={`Operator email for ${ticket.title}`} value={assignees[ticket.id] ?? ''} onChange={(event) => setAssignees((current) => ({ ...current, [ticket.id]: event.target.value }))} className="min-w-64 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white" />
+                      <input type="email" placeholder="Operator email" aria-label={`Operator email for ${ticket.title}`} value={assignees[ticket.id] ?? ''} onChange={(event) => setAssignees((current) => ({ ...current, [ticket.id]: event.target.value }))} className="w-full flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white sm:min-w-64" />
                       <button disabled={busyTicket === ticket.id} onClick={() => ticketAction(ticket.id, 'assign')} className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium hover:bg-slate-800 disabled:opacity-50">Assign operator</button>
                     </div>
                   )}

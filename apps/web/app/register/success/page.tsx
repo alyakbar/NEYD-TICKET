@@ -46,8 +46,8 @@ export default async function RegistrationSuccessPage({ searchParams }: Registra
   const posterUrl = getPublicEventPosterUrl(searchParams.poster);
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-5 py-10 text-slate-100">
-      <section className={`w-full max-w-xl rounded-3xl border bg-slate-900 p-8 text-center shadow-2xl md:p-12 ${confirmed ? 'border-emerald-800' : 'border-amber-800'}`}>
+    <main id="main-content" className="flex min-h-screen items-center justify-center px-4 py-6 text-slate-100 sm:px-5 sm:py-10">
+      <section className={`w-full max-w-xl rounded-2xl border bg-[#193324] p-5 text-center shadow-[0_18px_44px_rgba(0,0,0,0.22)] sm:rounded-3xl sm:p-8 md:p-12 ${confirmed ? 'border-emerald-700' : 'border-[#d4a574]'}`}>
         {posterUrl && <img src={posterUrl} alt={`${eventTitle} event poster`} className="mb-6 aspect-[16/9] w-full rounded-xl object-cover" />}
         <p className={`text-xs uppercase tracking-[0.22em] ${confirmed ? 'text-emerald-300' : 'text-amber-300'}`}>
           {confirmed ? 'Registration confirmed' : 'Payment not confirmed'}
@@ -90,7 +90,7 @@ export default async function RegistrationSuccessPage({ searchParams }: Registra
         )}
         <a
           href="/"
-          className="mt-8 inline-flex rounded-xl bg-sky-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-sky-300"
+          className="mt-8 inline-flex rounded-xl bg-[#e8c49a] px-5 py-3 font-semibold text-[#12261b] transition hover:bg-[#d4a574]"
         >
           Browse more events
         </a>

@@ -166,13 +166,13 @@ export default function EventAttendeesPage() {
   }
 
   if (!authReady || (loading && !token)) {
-    return <main className="min-h-screen p-8 text-slate-300">Loading organizer access…</main>;
+    return <main id="main-content" className="min-h-screen px-4 py-6 text-slate-300 sm:px-5 sm:py-10">Loading organizer access…</main>;
   }
 
   if (!token) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-5 py-10 text-slate-100">
-        <section className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
+      <main id="main-content" className="flex min-h-screen items-center justify-center px-4 py-8 text-slate-100 sm:px-5 sm:py-10">
+        <section className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-4 text-center sm:p-8">
           <p className="text-xs uppercase tracking-[0.22em] text-sky-400">Organizer admin</p>
           <h1 className="mt-3 text-2xl font-bold text-white">Sign in to view attendees</h1>
           <p className="mt-3 text-slate-300">Event registration details are available to authorized administrators.</p>
@@ -185,16 +185,16 @@ export default function EventAttendeesPage() {
   }
 
   return (
-    <main className="min-h-screen px-5 py-10 text-slate-100">
+    <main id="main-content" className="min-h-screen px-4 py-6 text-slate-100 sm:px-5 sm:py-10">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 sm:mb-8">
           <div>
             <a href="/" className="text-sm text-sky-300 hover:text-sky-200">← Back to events</a>
             <p className="mt-4 text-xs uppercase tracking-[0.22em] text-sky-400">Organizer admin</p>
             <h1 className="mt-2 text-3xl font-bold text-white">Event attendees</h1>
             <p className="mt-2 text-sm text-slate-400">{attendees.length} registration{attendees.length === 1 ? '' : 's'} across all events</p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <a href="/admin/events" className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">
               Manage events
             </a>
@@ -215,7 +215,7 @@ export default function EventAttendeesPage() {
         {error && <p role="alert" className="mb-5 rounded-xl border border-rose-900 bg-rose-950/40 p-4 text-sm text-rose-200">{error}</p>}
         {notice && <p role="status" className="mb-5 rounded-xl border border-emerald-900 bg-emerald-950/40 p-4 text-sm text-emerald-200">{notice}</p>}
 
-        <section className="mb-5 grid gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 md:grid-cols-[1fr_18rem]">
+        <section className="mb-5 grid gap-3 rounded-2xl border border-[#3d5d4b] bg-[#193324] p-4 md:grid-cols-[1fr_18rem]">
           <label className="text-sm text-slate-300">
             Search attendee
             <input
@@ -246,7 +246,70 @@ export default function EventAttendeesPage() {
             {attendees.length === 0 ? 'No attendees have registered yet.' : 'No registrations match these filters.'}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+          <>
+            <div className="space-y-3 md:hidden">
+              {filteredAttendees.map((attendee) => (
+                <article key={attendee.id} className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="font-semibold text-white">{attendee.fullName}</h2>
+                      {attendee.role && <p className="mt-1 text-xs text-slate-400">{attendee.role}</p>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => startEditing(attendee)}
+                      className="shrink-0 rounded-lg border border-sky-700 px-3 py-2 text-sm text-sky-200"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                  <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div><dt className="text-xs text-slate-500">Event</dt><dd className="mt-1 text-slate-200">{attendee.event?.title ?? 'Event'}</dd></div>
+                    <div><dt className="text-xs text-slate-500">Payment</dt><dd className="mt-1 capitalize text-slate-200">{attendee.paymentStatus}</dd></div>
+                    <div className="col-span-2"><dt className="text-xs text-slate-500">Contact</dt><dd className="mt-1 break-words text-slate-200">{attendee.email}<br />{attendee.phone}</dd></div>
+                    <div><dt className="text-xs text-slate-500">Ticket</dt><dd className="mt-1 text-slate-200">{attendee.ticketType ?? 'General Admission'}</dd></div>
+                    <div><dt className="text-xs text-slate-500">Email</dt><dd className="mt-1 capitalize text-slate-200">{attendee.ticketEmailStatus?.replace('_', ' ') ?? 'Not sent'}</dd></div>
+                  </dl>
+                  {attendee.ticketCode && (
+                    <p className="mt-3 rounded-lg bg-slate-950 px-3 py-2 font-mono text-xs text-slate-300">{attendee.ticketCode}</p>
+                  )}
+                  {editingId === attendee.id && (
+                    <form onSubmit={saveAttendee} className="mt-4 space-y-3 border-t border-slate-800 pt-4">
+                      <label className="block text-sm text-slate-300">Full name
+                        <input required minLength={2} maxLength={120} value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+                      </label>
+                      <label className="block text-sm text-slate-300">Email
+                        <input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+                      </label>
+                      <label className="block text-sm text-slate-300">Phone
+                        <input required minLength={7} maxLength={25} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+                      </label>
+                      <label className="block text-sm text-slate-300">Role
+                        <input maxLength={120} value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+                      </label>
+                      <label className="block text-sm text-slate-300">Ticket type
+                        <input required maxLength={80} value={form.ticketType} onChange={(event) => setForm({ ...form, ticketType: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+                      </label>
+                      <label className="block text-sm text-slate-300">Dietary requirements
+                        <textarea maxLength={1000} rows={2} value={form.dietaryRequirements} onChange={(event) => setForm({ ...form, dietaryRequirements: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+                      </label>
+                      <label className="block text-sm text-slate-300">Expectations
+                        <textarea maxLength={4000} rows={3} value={form.expectations} onChange={(event) => setForm({ ...form, expectations: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="submit" disabled={saving} className="rounded-lg bg-[#e8c49a] px-3 py-2 font-semibold text-[#12261b] disabled:opacity-50 enabled:hover:bg-[#d4a574]">
+                          {saving ? 'Saving…' : 'Save'}
+                        </button>
+                        <button type="button" onClick={() => setEditingId('')} className="rounded-lg border border-slate-700 px-3 py-2 text-slate-200">
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </article>
+              ))}
+            </div>
+            <div className="hidden overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 md:block">
             <div className="overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-slate-950 text-slate-300">
@@ -343,6 +406,7 @@ export default function EventAttendeesPage() {
               </table>
             </div>
           </div>
+          </>
         )}
       </div>
     </main>

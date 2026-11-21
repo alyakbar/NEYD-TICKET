@@ -65,7 +65,6 @@ export default function RegisterPage() {
   const selectedPosterUrl = getPublicEventPosterUrl(selectedEvent?.posterUrl);
 
   const [form, setForm] = useState<RegistrationForm>(defaultForm());
-  const [savedRegistrations, setSavedRegistrations] = useState(0);
   const [registrationId, setRegistrationId] = useState('');
   const [paymentId, setPaymentId] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
@@ -91,16 +90,6 @@ export default function RegisterPage() {
         setEventLoadError(requestError instanceof Error ? requestError.message : 'Could not load events.');
       })
       .finally(() => setIsLoadingEvents(false));
-  }, []);
-
-  useEffect(() => {
-    fetch(`${API_URL}/event-registrations/count`)
-      .then(async (response) => {
-        if (!response.ok) return;
-        const data = await response.json();
-        if (typeof data === 'number') setSavedRegistrations(data);
-      })
-      .catch(() => setError('Could not load registration count from the database.'));
   }, []);
 
   useEffect(() => {
@@ -282,7 +271,6 @@ export default function RegisterPage() {
 
       const registration = await response.json();
       setRegistrationId(registration.id);
-      setSavedRegistrations((current) => current + 1);
       setForm(defaultForm());
       await beginPayment(registration.id);
     } catch (requestError) {
@@ -306,21 +294,18 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="min-h-screen px-5 py-10 text-slate-100">
+    <main id="main-content" className="min-h-screen px-4 py-6 text-slate-100 sm:px-5 sm:py-10">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <header className="mb-6 flex items-start justify-between gap-3 sm:mb-8">
           <div>
             <a href="/" className="text-sm text-sky-300 hover:text-sky-200">← Back to events</a>
             <p className="mt-4 text-xs uppercase tracking-[0.22em] text-sky-400">Event registration</p>
             <h1 className="mt-2 text-3xl font-bold text-white md:text-4xl">Reserve your spot</h1>
           </div>
-          <div className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-300">
-            {savedRegistrations} registration{savedRegistrations === 1 ? '' : 's'} in database
-          </div>
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+          <form onSubmit={handleSubmit} className="w-full space-y-5 rounded-2xl border border-[#3d5d4b] bg-[#193324] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.18)] sm:p-6">
             {error && (
               <div className="rounded-lg border border-rose-800 bg-rose-950/40 p-3 text-sm text-rose-200">{error}</div>
             )}
@@ -441,13 +426,13 @@ export default function RegisterPage() {
               </span>
             </label>
 
-            <button disabled={!selectedEvent || isSubmitting || !!registrationId} type="submit" className="w-full rounded-lg bg-sky-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-50">
+            <button disabled={!selectedEvent || isSubmitting || !!registrationId} type="submit" className="w-full rounded-lg bg-[#e8c49a] px-4 py-3 font-semibold text-[#12261b] shadow-[0_8px_20px_rgba(232,196,154,0.14)] transition enabled:hover:bg-[#d4a574] disabled:cursor-not-allowed disabled:opacity-50">
               {isSubmitting ? 'Starting M-Pesa payment…' : selectedEvent ? `Register and pay KES ${Number(selectedEvent.priceKsh).toLocaleString()}` : 'Select an available event'}
             </button>
             <p className="text-xs text-slate-500">The server uses the event price stored in the database. Approve the STK prompt on the M-Pesa phone number you entered.</p>
           </form>
 
-          <aside className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
+          <aside className="w-full rounded-2xl border border-[#3d5d4b] bg-[#193324] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.18)] sm:p-6">
             <p className="text-xs uppercase tracking-[0.22em] text-sky-400">Selected event</p>
             {selectedEvent ? (
               <>

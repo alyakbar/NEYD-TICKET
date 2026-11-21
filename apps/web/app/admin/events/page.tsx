@@ -254,13 +254,13 @@ export default function AdminEventsPage() {
   const formPosterUrl = getPublicEventPosterUrl(form.posterUrl);
 
   if (!authReady || (loading && !token)) {
-    return <main className="min-h-screen p-8 text-slate-300">Loading organizer access…</main>;
+    return <main id="main-content" className="min-h-screen px-4 py-6 text-slate-300 sm:px-5 sm:py-10">Loading organizer access…</main>;
   }
 
   if (!token) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-5 py-10 text-slate-100">
-        <section className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
+      <main id="main-content" className="flex min-h-screen items-center justify-center px-4 py-8 text-slate-100 sm:px-5 sm:py-10">
+        <section className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-4 text-center sm:p-8">
           <p className="text-xs uppercase tracking-[0.22em] text-sky-400">Organizer admin</p>
           <h1 className="mt-3 text-2xl font-bold text-white">Sign in to manage events</h1>
           <p className="mt-3 text-slate-300">Only authorized administrators can create, edit, or archive events.</p>
@@ -273,16 +273,16 @@ export default function AdminEventsPage() {
   }
 
   return (
-    <main className="min-h-screen px-5 py-10 text-slate-100">
+    <main id="main-content" className="min-h-screen px-4 py-6 text-slate-100 sm:px-5 sm:py-10">
       <div className="mx-auto max-w-6xl">
-        <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 sm:mb-8">
           <div>
             <a href="/admin" className="text-sm text-sky-300 hover:text-sky-200">← Back to dashboard</a>
             <p className="mt-4 text-xs uppercase tracking-[0.22em] text-sky-400">Organizer admin</p>
             <h1 className="mt-2 text-3xl font-bold text-white">Manage events</h1>
             <p className="mt-2 text-sm text-slate-400">Archived events are hidden publicly; registrations and payment records are kept.</p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <button type="button" onClick={() => void loadEvents(token)} disabled={loading} className="rounded-xl border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-50">
               {loading ? 'Refreshing…' : 'Refresh'}
             </button>
@@ -299,7 +299,7 @@ export default function AdminEventsPage() {
         {notice && <p role="status" className="mb-5 rounded-xl border border-emerald-900 bg-emerald-950/40 p-4 text-sm text-emerald-200">{notice}</p>}
 
         {showForm && (
-          <form ref={formRef} onSubmit={saveEvent} className="mb-8 rounded-2xl border border-slate-700 bg-slate-900 p-6 scroll-mt-6">
+          <form ref={formRef} onSubmit={saveEvent} className="mb-8 rounded-2xl border border-[#4f715c] bg-[#193324] p-4 scroll-mt-6 shadow-[0_18px_44px_rgba(0,0,0,0.16)] sm:p-6">
             <h2 className="text-xl font-semibold text-white">{editingId ? 'Edit event' : 'Create event'}</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <label className="text-sm text-slate-300">Event title
@@ -363,7 +363,7 @@ export default function AdminEventsPage() {
               </label>
             </div>
             <div className="mt-5 flex gap-3">
-              <button type="submit" disabled={saving} className="rounded-lg bg-sky-400 px-4 py-2 font-semibold text-slate-950 disabled:opacity-50">
+              <button type="submit" disabled={saving} className="rounded-lg bg-[#e8c49a] px-4 py-2 font-semibold text-[#12261b] disabled:opacity-50 enabled:hover:bg-[#d4a574]">
                 {saving ? 'Saving…' : editingId ? 'Save changes' : 'Create event'}
               </button>
               <button type="button" onClick={() => { setShowForm(false); setEditingId(''); }} className="rounded-lg border border-slate-700 px-4 py-2 text-slate-200 hover:bg-slate-800">
@@ -388,7 +388,7 @@ export default function AdminEventsPage() {
             {events.map((event) => {
               const posterUrl = getPublicEventPosterUrl(event.posterUrl);
               return (
-              <article key={event.id} className={`rounded-2xl border bg-slate-900 p-5 ${event.isArchived ? 'border-amber-900/70 opacity-80' : 'border-slate-800'}`}>
+              <article key={event.id} className={`w-full rounded-2xl border bg-slate-900 p-4 sm:p-5 ${event.isArchived ? 'border-amber-900/70 opacity-80' : 'border-slate-800'}`}>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     {posterUrl && <img src={posterUrl} alt={`${event.title} event poster`} loading="lazy" className="mb-4 aspect-[16/9] max-h-56 rounded-lg border border-slate-700 bg-slate-950 object-contain" />}
@@ -410,7 +410,7 @@ export default function AdminEventsPage() {
                       </ul>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
                     <button type="button" onClick={() => startEditing(event)} className="rounded-lg border border-slate-700 px-3 py-2 text-sm hover:bg-slate-800">
                       Edit
                     </button>
