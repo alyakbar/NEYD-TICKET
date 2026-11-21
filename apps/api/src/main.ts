@@ -43,12 +43,18 @@ async function bootstrap() {
     ?.split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-  if (process.env.NODE_ENV === 'production' && !allowedOrigins?.length) {
-    console.error('Production startup configuration: CORS_ORIGINS is missing.');
-    throw new Error('CORS_ORIGINS must be configured in production.');
-  }
+  const vercelOrigin = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : null;
+  const corsOrigins = allowedOrigins?.length
+    ? allowedOrigins
+    : vercelOrigin
+      ? [vercelOrigin]
+      : ['http://localhost:3000'];
   app.enableCors({
-    origin: allowedOrigins?.length ? allowedOrigins : ['http://localhost:3000'],
+    origin: corsOrigins,
     credentials: true,
   });
 
