@@ -7,6 +7,7 @@ type Event = {
   date: string | null;
   location: string | null;
   priceKsh: number;
+  ticketOptions?: { priceKsh: number | null }[] | null;
   description: string | null;
   posterUrl: string | null;
   highlights: string[] | null;
@@ -86,6 +87,12 @@ export default async function Home() {
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {events.map((event) => {
                 const posterUrl = getPublicEventPosterUrl(event.posterUrl);
+                const availablePrices = event.ticketOptions?.length
+                  ? event.ticketOptions
+                    .map((option) => option.priceKsh)
+                    .filter((price): price is number => price !== null)
+                  : [event.priceKsh];
+                const startingPrice = Math.min(...availablePrices);
                 return (
                 <article key={event.slug} className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#d9c9af] bg-white shadow-[0_12px_32px_rgba(18,38,27,0.10)]">
                   {posterUrl ? (
@@ -96,7 +103,7 @@ export default async function Home() {
                   <div className="flex flex-1 flex-col p-5">
                   <div className="flex items-center justify-end">
                     <span className="text-sm font-semibold text-[#2a4e36]">
-                      KES {Number(event.priceKsh ?? 0).toLocaleString()}
+                      {availablePrices.length ? `Tickets from KES ${Number(startingPrice).toLocaleString()}` : 'Ticket prices to be announced'}
                     </span>
                   </div>
 

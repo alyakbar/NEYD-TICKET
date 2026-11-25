@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 import { Public, RequirePermissions, RbacGuard } from '../authorization/authorization.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateEventDto, EventsService, UpdateEventDto } from './events.service';
@@ -46,5 +46,12 @@ export class EventsController {
   @UseGuards(JwtAuthGuard, RbacGuard)
   restore(@Param('id', ParseUUIDPipe) id: string) {
     return this.eventsService.restore(id);
+  }
+
+  @Delete(':id')
+  @RequirePermissions('events:write')
+  @UseGuards(JwtAuthGuard, RbacGuard)
+  delete(@Param('id', ParseUUIDPipe) id: string) {
+    return this.eventsService.delete(id);
   }
 }

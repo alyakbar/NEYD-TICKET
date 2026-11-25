@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { EventRegistration } from '../event-registrations/event-registration.entity';
+import type { EventTicketOption } from './event-ticket-options';
 
 @Entity('events')
 export class EventEntity {
@@ -20,6 +21,9 @@ export class EventEntity {
 
   @Column({ default: 0 })
   priceKsh: number;
+
+  @Column({ type: 'simple-json', nullable: true })
+  ticketOptions: EventTicketOption[] | null;
 
   @Column({ nullable: true, type: 'text' })
   description: string | null;

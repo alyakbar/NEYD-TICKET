@@ -12,6 +12,17 @@ type Attendee = {
   phone: string;
   role?: string | null;
   ticketType?: string;
+  childName?: string | null;
+  childAge?: number | null;
+  ticketSelections?: {
+    ticketType: string;
+    quantity: number;
+    unitPriceKsh: number;
+    lineTotalKsh: number;
+    pricingMode: 'per_person' | 'family_bundle';
+    childDetails: { name: string; age: number }[];
+  }[] | null;
+  amountKsh?: number | null;
   expectations?: string | null;
   dietaryRequirements?: string | null;
   paymentStatus: string;
@@ -51,6 +62,12 @@ async function responseError(response: Response): Promise<string> {
   if (typeof body.message === 'string') return body.message;
   if (Array.isArray(body.message)) return body.message.join(', ');
   return `Request failed (${response.status}).`;
+}
+
+function csvCell(value: string | number | null | undefined): string {
+  const text = value === null || value === undefined ? '' : String(value);
+  const safeText = /^[\t\r ]*[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
 }
 
 export default function EventAttendeesPage() {
@@ -122,6 +139,62 @@ export default function EventAttendeesPage() {
       return matchesEvent && matchesSearch;
     });
   }, [attendees, eventFilter, search]);
+
+  function downloadAttendeesCsv() {
+    const headers = [
+      'Participant name',
+      'Email',
+      'Phone',
+      'Role',
+      'Event',
+      'Event date',
+      'Location',
+      'Ticket type',
+      'Ticket total (KES)',
+      'Children',
+      'Ticket breakdown',
+      'Expectations',
+      'Dietary / accessibility requirements',
+      'Payment status',
+      'Ticket code',
+      'Ticket email status',
+      'Registered at',
+    ];
+    const rows = filteredAttendees.map((attendee) => [
+      attendee.fullName,
+      attendee.email,
+      attendee.phone,
+      attendee.role,
+      attendee.event?.title,
+      attendee.event?.date,
+      attendee.event?.location,
+      attendee.ticketType ?? 'General Admission',
+      attendee.amountKsh,
+      attendee.ticketSelections?.flatMap((selection) => selection.childDetails)
+        .map((child) => `${child.name} (age ${child.age})`).join('; ')
+        ?? (attendee.childName ? `${attendee.childName}${attendee.childAge !== null && attendee.childAge !== undefined ? ` (age ${attendee.childAge})` : ''}` : ''),
+      attendee.ticketSelections?.map((selection) =>
+        `${selection.ticketType} × ${selection.quantity} @ KES ${selection.unitPriceKsh.toLocaleString()} (${selection.pricingMode.replace('_', ' ')})`,
+      ).join('; '),
+      attendee.expectations,
+      attendee.dietaryRequirements,
+      attendee.paymentStatus,
+      attendee.ticketCode,
+      attendee.ticketEmailStatus?.replace('_', ' ') ?? 'Not sent',
+      new Date(attendee.createdAt).toLocaleString(),
+    ]);
+    const csv = [headers, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const date = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `neyd-participants-${date}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 
   function startEditing(attendee: Attendee) {
     setEditingId(attendee.id);
@@ -195,6 +268,22 @@ export default function EventAttendeesPage() {
             <p className="mt-2 text-sm text-slate-400">{attendees.length} registration{attendees.length === 1 ? '' : 's'} across all events</p>
           </div>
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            <button
+              type="button"
+              onClick={downloadAttendeesCsv}
+              disabled={loading || filteredAttendees.length === 0}
+              className="rounded-xl border border-emerald-700 px-4 py-2 text-sm text-emerald-200 hover:bg-emerald-950/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Download list
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              disabled={loading || filteredAttendees.length === 0}
+              className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Print list
+            </button>
             <a href="/admin/events" className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">
               Manage events
             </a>
@@ -268,6 +357,17 @@ export default function EventAttendeesPage() {
                     <div><dt className="text-xs text-slate-500">Payment</dt><dd className="mt-1 capitalize text-slate-200">{attendee.paymentStatus}</dd></div>
                     <div className="col-span-2"><dt className="text-xs text-slate-500">Contact</dt><dd className="mt-1 break-words text-slate-200">{attendee.email}<br />{attendee.phone}</dd></div>
                     <div><dt className="text-xs text-slate-500">Ticket</dt><dd className="mt-1 text-slate-200">{attendee.ticketType ?? 'General Admission'}</dd></div>
+                    {attendee.amountKsh !== null && attendee.amountKsh !== undefined && <div><dt className="text-xs text-slate-500">Total</dt><dd className="mt-1 text-slate-200">KES {attendee.amountKsh.toLocaleString()}</dd></div>}
+                    {!!(attendee.ticketSelections?.flatMap((selection) => selection.childDetails).length ?? (attendee.childName ? 1 : 0)) && (
+                      <div className="col-span-2">
+                        <dt className="text-xs text-slate-500">Children</dt>
+                        <dd className="mt-1 text-slate-200">
+                          {attendee.ticketSelections?.flatMap((selection) => selection.childDetails)
+                            .map((child) => `${child.name} · age ${child.age}`).join(', ')
+                            ?? `${attendee.childName} · age ${attendee.childAge ?? 'not recorded'}`}
+                        </dd>
+                      </div>
+                    )}
                     <div><dt className="text-xs text-slate-500">Email</dt><dd className="mt-1 capitalize text-slate-200">{attendee.ticketEmailStatus?.replace('_', ' ') ?? 'Not sent'}</dd></div>
                   </dl>
                   {attendee.ticketCode && (
@@ -343,6 +443,18 @@ export default function EventAttendeesPage() {
                         </td>
                         <td className="px-4 py-3">
                           <div>{attendee.ticketType ?? 'General Admission'}</div>
+                          {attendee.amountKsh !== null && attendee.amountKsh !== undefined && <div className="mt-1 text-xs text-slate-300">Total: KES {attendee.amountKsh.toLocaleString()}</div>}
+                          {attendee.ticketSelections?.map((selection) => (
+                            <div key={`${attendee.id}-${selection.ticketType}`} className="mt-1 text-xs text-slate-400">
+                              {selection.ticketType} × {selection.quantity}
+                            </div>
+                          ))}
+                          {attendee.ticketSelections?.flatMap((selection) => selection.childDetails).map((child) => (
+                            <div key={`${attendee.id}-${child.name}-${child.age}`} className="mt-1 text-xs text-slate-300">
+                              Child: {child.name} · age {child.age}
+                            </div>
+                          ))}
+                          {!attendee.ticketSelections?.length && attendee.childName && <div className="mt-1 text-xs text-slate-300">Child: {attendee.childName}{attendee.childAge !== null && attendee.childAge !== undefined ? ` · age ${attendee.childAge}` : ''}</div>}
                           {attendee.ticketCode && <div className="mt-1 font-mono text-xs text-slate-400">{attendee.ticketCode}</div>}
                           {attendee.dietaryRequirements && <div className="mt-1 text-xs text-slate-400">Diet: {attendee.dietaryRequirements}</div>}
                         </td>
@@ -408,7 +520,109 @@ export default function EventAttendeesPage() {
           </div>
           </>
         )}
+
+        <section className="attendee-print-area" aria-label="Printable participant list">
+          <h1 className="text-2xl font-bold">NEYD participant list</h1>
+          <p className="mb-4 mt-2 text-sm">
+            {eventFilter ? eventOptions.find((option) => option.id === eventFilter)?.title : 'All events'}
+            {search.trim() ? ` · Search: ${search.trim()}` : ''}
+            {' · '}{filteredAttendees.length} participant{filteredAttendees.length === 1 ? '' : 's'}
+          </p>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Event</th>
+                <th>Event date / location</th>
+                <th>Ticket</th>
+                <th>Total (KES)</th>
+                <th>Child</th>
+                <th>Payment</th>
+                <th>Ticket code</th>
+                <th>Ticket email</th>
+                <th>Dietary / accessibility</th>
+                <th>Expectations</th>
+                <th>Registered</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAttendees.map((attendee) => (
+                <tr key={attendee.id}>
+                  <td>{attendee.fullName}</td>
+                  <td>{attendee.email}</td>
+                  <td>{attendee.phone}</td>
+                  <td>{attendee.role || ''}</td>
+                  <td>{attendee.event?.title ?? 'Event'}</td>
+                  <td>{[attendee.event?.date, attendee.event?.location].filter(Boolean).join(' · ')}</td>
+                  <td>{attendee.ticketType ?? 'General Admission'}</td>
+                  <td>{attendee.amountKsh?.toLocaleString() ?? ''}</td>
+                  <td>{attendee.ticketSelections?.flatMap((selection) => selection.childDetails)
+                    .map((child) => `${child.name} (age ${child.age})`).join('; ')
+                    ?? (attendee.childName ? `${attendee.childName}${attendee.childAge !== null && attendee.childAge !== undefined ? ` (age ${attendee.childAge})` : ''}` : '')}</td>
+                  <td>{attendee.paymentStatus}</td>
+                  <td>{attendee.ticketCode ?? ''}</td>
+                  <td>{attendee.ticketEmailStatus?.replace('_', ' ') ?? 'Not sent'}</td>
+                  <td>{attendee.dietaryRequirements ?? ''}</td>
+                  <td>{attendee.expectations ?? ''}</td>
+                  <td>{new Date(attendee.createdAt).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       </div>
+      <style jsx global>{`
+        .attendee-print-area {
+          display: none;
+        }
+        @media print {
+          @page {
+            size: landscape;
+            margin: 12mm;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          .attendee-print-area,
+          .attendee-print-area * {
+            visibility: visible !important;
+          }
+          .attendee-print-area {
+            display: block !important;
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            color: #111;
+            background: #fff;
+            font: 9px Arial, sans-serif;
+          }
+          .attendee-print-area h1 {
+            font-size: 18px;
+          }
+          .attendee-print-area table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: auto;
+          }
+          .attendee-print-area th,
+          .attendee-print-area td {
+            border: 1px solid #999;
+            padding: 4px;
+            text-align: left;
+            vertical-align: top;
+            overflow-wrap: anywhere;
+          }
+          .attendee-print-area th {
+            background: #eee !important;
+          }
+          .attendee-print-area tr {
+            break-inside: avoid;
+          }
+        }
+      `}</style>
     </main>
   );
 }

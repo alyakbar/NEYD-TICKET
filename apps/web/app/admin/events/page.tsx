@@ -13,10 +13,19 @@ type EventRecord = {
   date: string | null;
   location: string | null;
   priceKsh: number;
+  ticketOptions?: TicketOption[] | null;
   description: string | null;
   posterUrl: string | null;
   highlights: string[] | null;
   isArchived: boolean;
+};
+
+type TicketOption = {
+  name: string;
+  priceKsh: number | null;
+  requiresChildDetails: boolean;
+  pricingMode?: 'per_person' | 'family_bundle';
+  peoplePerTicket?: number;
 };
 
 type EventForm = {
@@ -25,10 +34,23 @@ type EventForm = {
   date: string;
   location: string;
   priceKsh: string;
+  ticketOptions: {
+    name: string;
+    priceKsh: string;
+    requiresChildDetails: boolean;
+    pricingMode: 'per_person' | 'family_bundle';
+    peoplePerTicket: string;
+  }[];
   description: string;
   posterUrl: string;
   highlights: string;
 };
+
+const initialTicketOptions = [
+  { name: 'General Admission', priceKsh: '5', requiresChildDetails: false, pricingMode: 'per_person' as const, peoplePerTicket: '1' },
+  { name: 'Parent', priceKsh: '', requiresChildDetails: false, pricingMode: 'per_person' as const, peoplePerTicket: '1' },
+  { name: 'Child', priceKsh: '', requiresChildDetails: true, pricingMode: 'per_person' as const, peoplePerTicket: '1' },
+];
 
 const emptyForm: EventForm = {
   slug: '',
@@ -36,10 +58,20 @@ const emptyForm: EventForm = {
   date: '',
   location: '',
   priceKsh: '5',
+  ticketOptions: initialTicketOptions,
   description: '',
   posterUrl: '',
   highlights: '',
 };
+
+function getTicketOptions(event: EventRecord): TicketOption[] {
+  const configuredOptions = event.ticketOptions?.filter(
+    (option) => option.name.trim().toLowerCase() !== 'parent + child',
+  );
+  return configuredOptions?.length
+    ? configuredOptions
+    : [{ name: 'General Admission', priceKsh: Number(event.priceKsh), requiresChildDetails: false }];
+}
 
 function toDateInputValue(value: string | null): string {
   if (!value) return '';
@@ -173,6 +205,13 @@ export default function AdminEventsPage() {
       date: toDateInputValue(event.date),
       location: event.location ?? '',
       priceKsh: String(event.priceKsh),
+      ticketOptions: getTicketOptions(event).map((option) => ({
+        name: option.name,
+        requiresChildDetails: option.requiresChildDetails,
+        pricingMode: option.pricingMode ?? 'per_person',
+        peoplePerTicket: String(option.peoplePerTicket ?? 1),
+        priceKsh: option.priceKsh === null ? '' : String(option.priceKsh),
+      })),
       description: event.description ?? '',
       posterUrl: event.posterUrl ?? '',
       highlights: (event.highlights ?? []).join('\n'),
@@ -187,16 +226,35 @@ export default function AdminEventsPage() {
 
   async function saveEvent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true);
     setError('');
     setNotice('');
+    const ticketOptions = form.ticketOptions.map((option) => ({
+      name: option.name.trim(),
+      priceKsh: option.priceKsh.trim() ? Number(option.priceKsh) : null,
+      requiresChildDetails: option.requiresChildDetails,
+      pricingMode: option.pricingMode,
+      peoplePerTicket: Number(option.peoplePerTicket),
+    }));
+    if (ticketOptions.some((option) => !option.name)) {
+      setError('Every ticket type needs a name.');
+      return;
+    }
+    if (!ticketOptions.some((option) => option.priceKsh !== null)) {
+      setError('Set a price for at least one ticket type.');
+      return;
+    }
+    const legacyPrice = ticketOptions.find((option) => option.name.toLowerCase() === 'general admission')?.priceKsh
+      ?? ticketOptions.find((option) => option.priceKsh !== null)?.priceKsh
+      ?? Number(form.priceKsh);
+    setSaving(true);
     const payload = {
       ...form,
       slug: form.slug.trim().toLowerCase(),
       title: form.title.trim(),
       date: form.date.trim(),
       location: form.location.trim(),
-      priceKsh: Number(form.priceKsh),
+      priceKsh: legacyPrice,
+      ticketOptions,
       description: form.description.trim(),
       posterUrl: form.posterUrl.trim() || null,
       highlights: form.highlights.split('\n').map((item) => item.trim()).filter(Boolean),
@@ -246,6 +304,29 @@ export default function AdminEventsPage() {
       await loadEvents(token);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to change event status.');
+    } finally {
+      setBusyEventId('');
+    }
+  }
+
+  async function deleteEvent(event: EventRecord) {
+    if (!window.confirm(`Permanently delete "${event.title}"? This is only allowed when the event has no registrations. Events with participants can be archived instead.`)) {
+      return;
+    }
+
+    setBusyEventId(event.id);
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch(`${API_URL}/events/${encodeURIComponent(event.id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      setNotice(`"${event.title}" was deleted.`);
+      await loadEvents(token);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to delete event.');
     } finally {
       setBusyEventId('');
     }
@@ -314,9 +395,123 @@ export default function AdminEventsPage() {
               <label className="text-sm text-slate-300">Location
                 <input maxLength={255} value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} placeholder="Venue, city" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
               </label>
-              <label className="text-sm text-slate-300">Price (KES)
-                <input required type="number" min={1} max={250000} step={1} value={form.priceKsh} onChange={(event) => setForm({ ...form, priceKsh: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
-              </label>
+              <section className="md:col-span-2" aria-labelledby="ticket-options-heading">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 id="ticket-options-heading" className="text-sm font-semibold text-slate-200">Ticket types and prices</h3>
+                    <p className="mt-1 text-xs text-slate-400">Leave a price blank to keep that ticket unavailable until it is priced.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm((current) => ({
+                      ...current,
+                      ticketOptions: [...current.ticketOptions, {
+                        name: '',
+                        priceKsh: '',
+                        requiresChildDetails: false,
+                        pricingMode: 'per_person',
+                        peoplePerTicket: '1',
+                      }],
+                    }))}
+                    className="rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
+                  >
+                    Add ticket type
+                  </button>
+                </div>
+                <div className="mt-3 space-y-3">
+                  {form.ticketOptions.map((option, index) => (
+                    <div key={`${index}-${option.name}`} className="grid gap-3 rounded-xl border border-slate-700 bg-slate-950/60 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_10rem_auto] lg:items-end">
+                      <label className="text-sm text-slate-300">Ticket name
+                        <input
+                          required
+                          maxLength={80}
+                          value={option.name}
+                          onChange={(event) => setForm((current) => ({
+                            ...current,
+                            ticketOptions: current.ticketOptions.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item),
+                          }))}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+                        />
+                      </label>
+                      <label className="text-sm text-slate-300">{option.pricingMode === 'family_bundle' ? 'Bundle price (KES)' : 'Price (KES)'}
+                        <input
+                          type="number"
+                          min={1}
+                          max={250000}
+                          step={1}
+                          value={option.priceKsh}
+                          onChange={(event) => setForm((current) => ({
+                            ...current,
+                            ticketOptions: current.ticketOptions.map((item, itemIndex) => itemIndex === index ? { ...item, priceKsh: event.target.value } : item),
+                          }))}
+                          placeholder="Not available"
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+                        />
+                      </label>
+                      <label className="text-sm text-slate-300">Price method
+                        <select
+                          value={option.pricingMode}
+                          onChange={(event) => {
+                            const pricingMode = event.target.value;
+                            if (pricingMode !== 'per_person' && pricingMode !== 'family_bundle') return;
+                            setForm((current) => ({
+                              ...current,
+                              ticketOptions: current.ticketOptions.map((item, itemIndex) => itemIndex === index
+                                ? { ...item, pricingMode }
+                                : item),
+                            }));
+                          }}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+                        >
+                          <option value="per_person">Per person</option>
+                          <option value="family_bundle">Family bundle</option>
+                        </select>
+                      </label>
+                      <label className="text-sm text-slate-300">{option.pricingMode === 'family_bundle' ? 'People included' : 'People per ticket'}
+                        <input
+                          type="number"
+                          min={1}
+                          max={10}
+                          step={1}
+                          value={option.peoplePerTicket}
+                          onChange={(event) => setForm((current) => ({
+                            ...current,
+                            ticketOptions: current.ticketOptions.map((item, itemIndex) => itemIndex === index
+                              ? { ...item, peoplePerTicket: event.target.value }
+                              : item),
+                          }))}
+                          className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+                        />
+                      </label>
+                      <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
+                        <label className="flex items-center gap-2 text-xs text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={option.requiresChildDetails}
+                            onChange={(event) => setForm((current) => ({
+                              ...current,
+                              ticketOptions: current.ticketOptions.map((item, itemIndex) => itemIndex === index ? { ...item, requiresChildDetails: event.target.checked } : item),
+                            }))}
+                            className="h-4 w-4 rounded border-slate-600 bg-slate-900"
+                          />
+                          Collect child details
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setForm((current) => ({
+                            ...current,
+                            ticketOptions: current.ticketOptions.filter((_, itemIndex) => itemIndex !== index),
+                          }))}
+                          className="rounded-lg border border-rose-900 px-3 py-2 text-sm text-rose-200 hover:bg-rose-950/40"
+                          aria-label={`Remove ${option.name || 'ticket type'}`}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
               <label className="text-sm text-slate-300 md:col-span-2">Description
                 <textarea maxLength={5000} rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
               </label>
@@ -401,8 +596,17 @@ export default function AdminEventsPage() {
                     <p className="mt-1 font-mono text-xs text-slate-500">/{event.slug}</p>
                     <p className="mt-3 text-sm text-slate-300">
                       {[event.date, event.location].filter(Boolean).join(' · ') || 'Date and location not set'}
-                      {' · '}KES {Number(event.priceKsh).toLocaleString()}
                     </p>
+                    <ul className="mt-3 flex flex-wrap gap-2">
+                      {getTicketOptions(event).map((option) => (
+                        <li key={option.name} className="rounded-full border border-slate-700 px-2.5 py-1 text-xs text-slate-300">
+                            {option.name}: {option.priceKsh === null ? 'Not priced' : `KES ${Number(option.priceKsh).toLocaleString()}`}
+                            {option.pricingMode === 'family_bundle'
+                              ? ` / family bundle (${option.peoplePerTicket ?? 2} people)`
+                              : ` / person × ${option.peoplePerTicket ?? 1}`}
+                        </li>
+                      ))}
+                    </ul>
                     {event.description && <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-400">{event.description}</p>}
                     {!!event.highlights?.length && (
                       <ul className="mt-3 flex flex-wrap gap-2">
@@ -421,6 +625,14 @@ export default function AdminEventsPage() {
                       className="rounded-lg border border-amber-800 px-3 py-2 text-sm text-amber-200 hover:bg-amber-950 disabled:opacity-50"
                     >
                       {busyEventId === event.id ? 'Saving…' : event.isArchived ? 'Restore' : 'Archive'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteEvent(event)}
+                      disabled={busyEventId === event.id}
+                      className="rounded-lg border border-rose-900 px-3 py-2 text-sm text-rose-200 hover:bg-rose-950/40 disabled:opacity-50"
+                    >
+                      Delete
                     </button>
                   </div>
                 </div>

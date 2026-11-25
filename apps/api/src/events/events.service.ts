@@ -1,9 +1,51 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { ArrayMaxSize, IsArray, IsInt, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsIn,
+  Length,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventEntity } from './event.entity';
 import { normalizeEventPosterUrl } from './event-poster-url';
+import { DEFAULT_EVENT_TICKET_OPTIONS, EventTicketOption } from './event-ticket-options';
+
+export class EventTicketOptionDto {
+  @IsString()
+  @Length(1, 80)
+  name: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(250000)
+  priceKsh?: number | null;
+
+  @IsBoolean()
+  requiresChildDetails: boolean;
+
+  @IsOptional()
+  @IsIn(['per_person', 'family_bundle'])
+  pricingMode?: 'per_person' | 'family_bundle';
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  peoplePerTicket?: number;
+}
 
 export class CreateEventDto {
   @IsString()
@@ -29,6 +71,13 @@ export class CreateEventDto {
   @Min(1)
   @Max(250000)
   priceKsh: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => EventTicketOptionDto)
+  ticketOptions?: EventTicketOptionDto[];
 
   @ValidateIf((_object, value) => value !== undefined)
   @IsString()
@@ -75,6 +124,13 @@ export class UpdateEventDto {
   @Min(1)
   @Max(250000)
   priceKsh?: number;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => EventTicketOptionDto)
+  ticketOptions?: EventTicketOptionDto[];
 
   @ValidateIf((_object, value) => value !== undefined)
   @IsString()
@@ -125,12 +181,14 @@ export class EventsService {
     const title = payload.title.trim();
     if (title.length < 3) throw new BadRequestException('Event title must contain at least 3 characters.');
     await this.ensureUniqueSlug(slug);
+    const ticketOptions = this.cleanTicketOptions(payload.ticketOptions, payload.priceKsh);
     const event = this.eventsRepository.create({
       slug,
       title,
       date: payload.date?.trim() || null,
       location: payload.location?.trim() || null,
-      priceKsh: payload.priceKsh,
+      priceKsh: getLegacyPrice(ticketOptions, payload.priceKsh),
+      ticketOptions,
       description: payload.description?.trim() || null,
       posterUrl: normalizeEventPosterUrl(payload.posterUrl),
       highlights: cleanHighlights(payload.highlights),
@@ -156,6 +214,25 @@ export class EventsService {
     if (payload.date !== undefined) event.date = payload.date.trim() || null;
     if (payload.location !== undefined) event.location = payload.location.trim() || null;
     if (payload.priceKsh !== undefined) event.priceKsh = payload.priceKsh;
+    if (payload.ticketOptions !== undefined) {
+      event.ticketOptions = this.cleanTicketOptions(payload.ticketOptions, event.priceKsh);
+      event.priceKsh = getLegacyPrice(event.ticketOptions, event.priceKsh);
+    } else if (payload.priceKsh !== undefined) {
+      const options = event.ticketOptions ?? [];
+      const generalAdmission = options.find((option) => normalizeName(option.name) === 'general admission');
+      if (generalAdmission) {
+        generalAdmission.priceKsh = payload.priceKsh;
+        event.ticketOptions = options;
+      } else {
+        event.ticketOptions = [{
+          name: 'General Admission',
+          priceKsh: payload.priceKsh,
+          requiresChildDetails: false,
+          pricingMode: 'per_person',
+          peoplePerTicket: 1,
+        }];
+      }
+    }
     if (payload.description !== undefined) event.description = payload.description.trim() || null;
     if (payload.posterUrl !== undefined) event.posterUrl = normalizeEventPosterUrl(payload.posterUrl);
     if (payload.highlights !== undefined) event.highlights = cleanHighlights(payload.highlights);
@@ -177,11 +254,72 @@ export class EventsService {
     return this.eventsRepository.save(event);
   }
 
+  async delete(id: string) {
+    const event = await this.eventsRepository.findOneBy({ id });
+    if (!event) throw new NotFoundException(`Event ${id} was not found.`);
+
+    const registrationCount = await this.eventsRepository
+      .createQueryBuilder('event')
+      .leftJoin('event.registrations', 'registration')
+      .where('event.id = :id', { id })
+      .select('COUNT(registration.id)', 'count')
+      .getRawOne<{ count: string }>();
+
+    if (Number(registrationCount?.count ?? 0) > 0) {
+      throw new ConflictException('This event has registrations and cannot be deleted. Archive it to preserve participant and payment history.');
+    }
+
+    try {
+      const result = await this.eventsRepository.delete({ id });
+      if (!result.affected) throw new NotFoundException(`Event ${id} was not found.`);
+      return { id, deleted: true };
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw new ConflictException('This event has registrations and cannot be deleted. Archive it to preserve participant and payment history.');
+      }
+      throw error;
+    }
+  }
+
   private async ensureUniqueSlug(slug: string, exceptId?: string) {
     const existing = await this.eventsRepository.findOneBy({ slug });
     if (existing && existing.id !== exceptId) {
       throw new ConflictException('An event with this URL slug already exists.');
     }
+  }
+
+  private cleanTicketOptions(options: EventTicketOptionDto[] | undefined, fallbackPrice: number): EventTicketOption[] {
+    const ticketOptions = (options === undefined
+      ? DEFAULT_EVENT_TICKET_OPTIONS.map((option) => ({
+          ...option,
+          priceKsh: option.name === 'General Admission' ? fallbackPrice : null,
+        }))
+      : options
+    ).map((option) => ({
+      name: option.name.trim(),
+      priceKsh: option.priceKsh ?? null,
+      requiresChildDetails: option.requiresChildDetails,
+      pricingMode: option.pricingMode ?? 'per_person',
+      peoplePerTicket: option.peoplePerTicket ?? 1,
+    }));
+
+    if (ticketOptions.some((option) => !option.name)) {
+      throw new BadRequestException('Ticket type names cannot be empty.');
+    }
+    if (ticketOptions.some((option) => normalizeName(option.name) === 'parent + child')) {
+      throw new BadRequestException('Parent + Child tickets are no longer available. Set separate Parent and Child ticket types instead.');
+    }
+    if (ticketOptions.length === 0) {
+      throw new BadRequestException('An event must have at least one ticket type.');
+    }
+    if (new Set(ticketOptions.map((option) => normalizeName(option.name))).size !== ticketOptions.length) {
+      throw new BadRequestException('Ticket type names must be unique.');
+    }
+    if (!ticketOptions.some((option) => option.priceKsh !== null)) {
+      throw new BadRequestException('Set a price for at least one ticket type.');
+    }
+
+    return ticketOptions;
   }
 
   private async saveWithUniqueSlugHandling(event: EventEntity) {
@@ -198,4 +336,19 @@ export class EventsService {
 
 function cleanHighlights(highlights?: string[]): string[] {
   return (highlights ?? []).map((highlight) => highlight.trim()).filter(Boolean);
+}
+
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function getLegacyPrice(ticketOptions: EventTicketOption[], fallbackPrice: number): number {
+  const generalAdmission = ticketOptions.find((option) => normalizeName(option.name) === 'general admission');
+  return generalAdmission?.priceKsh ?? ticketOptions.find((option) => option.priceKsh !== null)?.priceKsh ?? fallbackPrice;
+}
+
+function isForeignKeyViolation(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const record = error as { code?: string; driverError?: { code?: string } };
+  return record.code === '23503' || record.driverError?.code === '23503';
 }

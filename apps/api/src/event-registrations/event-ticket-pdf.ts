@@ -7,6 +7,11 @@ export type EventTicketPdfDetails = {
   eventDate: string;
   eventLocation: string;
   ticketType: string;
+  ticketSelections?: { ticketType: string; quantity: number; lineTotalKsh: number }[] | null;
+  amountKsh?: number | null;
+  childName?: string | null;
+  childAge?: number | null;
+  childDetails?: { name: string; age: number }[];
   ticketCode: string;
   poster?: {
     contentType: 'image/png' | 'image/jpeg';
@@ -101,6 +106,19 @@ export async function createEventTicketPdf(details: EventTicketPdfDetails, qrCod
     ['DATE', details.eventDate],
     ['LOCATION', details.eventLocation],
     ['TICKET TYPE', details.ticketType],
+    ...(details.ticketSelections?.length
+      ? [['TICKETS', details.ticketSelections.map((selection) =>
+          `${selection.ticketType} x ${selection.quantity} - KES ${selection.lineTotalKsh.toLocaleString()}`,
+        ).join('; ')] as [string, string]]
+      : []),
+    ...(details.amountKsh !== null && details.amountKsh !== undefined
+      ? [['TOTAL PAID (KES)', details.amountKsh.toLocaleString()] as [string, string]]
+      : []),
+    ...(details.childDetails?.length
+      ? [['CHILDREN', details.childDetails.map((child) => `${child.name} (age ${child.age})`).join('; ')] as [string, string]]
+      : details.childName
+        ? [['CHILD', `${details.childName}${details.childAge !== null && details.childAge !== undefined ? ` (age ${details.childAge})` : ''}`] as [string, string]]
+      : []),
   ];
   for (const [label, rawValue] of fields) {
     page.drawText(label, {

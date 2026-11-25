@@ -10,7 +10,21 @@ type EventChoice = {
   date: string;
   location: string;
   priceKsh: number;
+  ticketOptions?: TicketOption[] | null;
   posterUrl: string | null;
+};
+
+type TicketOption = {
+  name: string;
+  priceKsh: number | null;
+  requiresChildDetails: boolean;
+  pricingMode?: 'per_person' | 'family_bundle';
+  peoplePerTicket?: number;
+};
+
+type ChildEntry = {
+  name: string;
+  age: string;
 };
 
 type RegistrationForm = {
@@ -20,7 +34,6 @@ type RegistrationForm = {
   email: string;
   phone: string;
   role: string;
-  ticketType: 'General Admission';
   expectations: string;
   dietaryRequirements: string;
   agree: boolean;
@@ -39,6 +52,18 @@ const MAX_RECONCILIATION_DELAY_MS = 5 * 60_000;
 const INITIAL_STATUS_POLL_INTERVAL_MS = 5_000;
 const MAX_STATUS_POLL_INTERVAL_MS = 30_000;
 
+function getTicketOptions(event: EventChoice): TicketOption[] {
+  return event.ticketOptions?.length
+    ? event.ticketOptions
+    : [{
+        name: 'General Admission',
+        priceKsh: Number(event.priceKsh),
+        requiresChildDetails: false,
+        pricingMode: 'per_person',
+        peoplePerTicket: 1,
+      }];
+}
+
 const defaultForm = (): RegistrationForm => ({
   eventSlug: '',
   eventTitle: '',
@@ -46,7 +71,6 @@ const defaultForm = (): RegistrationForm => ({
   email: '',
   phone: '',
   role: '',
-  ticketType: 'General Admission',
   expectations: '',
   dietaryRequirements: '',
   agree: false,
@@ -57,14 +81,39 @@ export default function RegisterPage() {
   const [selectedEventSlug, setSelectedEventSlug] = useState('');
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const [eventLoadError, setEventLoadError] = useState('');
+  const [ticketQuantities, setTicketQuantities] = useState<Record<string, number>>({});
+  const [ticketChildren, setTicketChildren] = useState<Record<string, ChildEntry[]>>({});
 
   const selectedEvent = useMemo(
     () => events.find((event) => event.slug === selectedEventSlug),
     [selectedEventSlug, events],
   );
+  const [form, setForm] = useState<RegistrationForm>(defaultForm());
+  const availableTicketOptions = selectedEvent
+    ? getTicketOptions(selectedEvent).filter((option) => option.priceKsh !== null)
+    : [];
+  const selectedTicketLines = availableTicketOptions
+    .filter((option) => (ticketQuantities[option.name] ?? 0) > 0)
+    .map((option) => {
+      const quantity = ticketQuantities[option.name];
+      const lineTotal = Number(option.priceKsh) * quantity *
+        (option.pricingMode === 'family_bundle' ? 1 : (option.peoplePerTicket ?? 1));
+      return {
+        option,
+        quantity,
+        lineTotal,
+        childDetails: ticketChildren[option.name] ?? [],
+      };
+    });
+  const totalPriceKsh = selectedTicketLines.reduce((total, line) => total + line.lineTotal, 0);
+  const missingChildren = selectedTicketLines.some(({ option, quantity, childDetails }) =>
+    option.requiresChildDetails &&
+    (childDetails.length !== quantity || childDetails.some((child) =>
+      !child.name.trim() || child.age === '' || !Number.isInteger(Number(child.age)) ||
+      Number(child.age) < 0 || Number(child.age) > 17)),
+  );
   const selectedPosterUrl = getPublicEventPosterUrl(selectedEvent?.posterUrl);
 
-  const [form, setForm] = useState<RegistrationForm>(defaultForm());
   const [registrationId, setRegistrationId] = useState('');
   const [paymentId, setPaymentId] = useState('');
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null);
@@ -94,11 +143,15 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (!selectedEvent) return;
+    const availableOptions = getTicketOptions(selectedEvent).filter((option) => option.priceKsh !== null);
+    const defaultOption = availableOptions.find((option) => option.name === 'General Admission') ?? availableOptions[0];
     setForm((current) => ({
       ...current,
       eventSlug: selectedEvent.slug,
       eventTitle: selectedEvent.title,
     }));
+    setTicketQuantities(defaultOption ? { [defaultOption.name]: 1 } : {});
+    setTicketChildren({});
   }, [selectedEvent]);
 
   useEffect(() => {
@@ -251,6 +304,18 @@ export default function RegisterPage() {
       setError('Select an event from the database before registering.');
       return;
     }
+    if (selectedTicketLines.length === 0) {
+      setError('Select at least one ticket to register.');
+      return;
+    }
+    if (missingChildren) {
+      setError('Enter a name and a valid age for every child ticket selected.');
+      return;
+    }
+    if (!Number.isInteger(totalPriceKsh) || totalPriceKsh < 1 || totalPriceKsh > 250000) {
+      setError('The total ticket price must be between KES 1 and KES 250,000.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -261,6 +326,13 @@ export default function RegisterPage() {
           ...form,
           eventSlug: selectedEvent.slug,
           eventTitle: selectedEvent.title,
+          ticketSelections: selectedTicketLines.map(({ option, quantity, childDetails }) => ({
+            ticketType: option.name,
+            quantity,
+            ...(option.requiresChildDetails
+              ? { childDetails: childDetails.map((child) => ({ name: child.name.trim(), age: Number(child.age) })) }
+              : {}),
+          })),
         }),
       });
 
@@ -383,12 +455,104 @@ export default function RegisterPage() {
                 />
               </label>
 
-              <div className="text-sm text-slate-300 md:col-span-2">
-                <span className="block">Ticket type</span>
-                <div className="mt-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white">
-                  General Admission
-                </div>
-              </div>
+              <section className="md:col-span-2" aria-labelledby="registration-tickets-heading">
+                <h2 id="registration-tickets-heading" className="text-sm font-semibold text-slate-200">Choose tickets</h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  Select the ticket types and quantities you need. Add one Child ticket for each child attending.
+                </p>
+                {availableTicketOptions.length === 0 ? (
+                  <p className="mt-3 rounded-lg border border-rose-900 bg-rose-950/30 p-3 text-sm text-rose-200">This event has no priced tickets available.</p>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    {availableTicketOptions.map((option) => {
+                      const quantity = ticketQuantities[option.name] ?? 0;
+                      return (
+                        <div key={option.name} className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <h3 className="font-medium text-white">{option.name}</h3>
+                              <p className="mt-1 text-xs text-slate-400">
+                                KES {Number(option.priceKsh).toLocaleString()} {option.pricingMode === 'family_bundle'
+                                  ? 'per family bundle'
+                                  : `per person${(option.peoplePerTicket ?? 1) > 1 ? ` · ${option.peoplePerTicket} people per ticket` : ''}`}
+                              </p>
+                            </div>
+                            <label className="flex items-center gap-2 text-sm text-slate-300">
+                              Quantity
+                              <input
+                                type="number"
+                                min={0}
+                                max={50}
+                                step={1}
+                                value={quantity}
+                                onChange={(event) => {
+                                  const nextQuantity = Math.max(0, Math.min(50, Number(event.target.value) || 0));
+                                  setTicketQuantities((current) => ({ ...current, [option.name]: nextQuantity }));
+                                  if (option.requiresChildDetails) {
+                                    setTicketChildren((current) => {
+                                      const existing = current[option.name] ?? [];
+                                      return {
+                                        ...current,
+                                        [option.name]: Array.from({ length: nextQuantity }, (_, index) =>
+                                          existing[index] ?? { name: '', age: '' },
+                                        ),
+                                      };
+                                    });
+                                  }
+                                }}
+                                className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white"
+                                aria-label={`${option.name} quantity`}
+                              />
+                            </label>
+                          </div>
+                          {option.requiresChildDetails && quantity > 0 && (
+                            <div className="mt-4 space-y-3 border-t border-slate-800 pt-3">
+                              <p className="text-xs font-medium text-slate-300">Child details ({quantity})</p>
+                              {(ticketChildren[option.name] ?? []).map((child, index) => (
+                                <div key={`${option.name}-${index}`} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
+                                  <label className="text-xs text-slate-400">
+                                    Child {index + 1} name
+                                    <input
+                                      required
+                                      maxLength={120}
+                                      value={child.name}
+                                      onChange={(event) => setTicketChildren((current) => ({
+                                        ...current,
+                                        [option.name]: (current[option.name] ?? []).map((entry, entryIndex) =>
+                                          entryIndex === index ? { ...entry, name: event.target.value } : entry,
+                                        ),
+                                      }))}
+                                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+                                    />
+                                  </label>
+                                  <label className="text-xs text-slate-400">
+                                    Age
+                                    <input
+                                      required
+                                      type="number"
+                                      min={0}
+                                      max={17}
+                                      step={1}
+                                      value={child.age}
+                                      onChange={(event) => setTicketChildren((current) => ({
+                                        ...current,
+                                        [option.name]: (current[option.name] ?? []).map((entry, entryIndex) =>
+                                          entryIndex === index ? { ...entry, age: event.target.value } : entry,
+                                        ),
+                                      }))}
+                                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+                                    />
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
 
               <label className="text-sm text-slate-300 md:col-span-2">
                 What do you need from this event?
@@ -426,10 +590,10 @@ export default function RegisterPage() {
               </span>
             </label>
 
-            <button disabled={!selectedEvent || isSubmitting || !!registrationId} type="submit" className="w-full rounded-lg bg-[#e8c49a] px-4 py-3 font-semibold text-[#12261b] shadow-[0_8px_20px_rgba(232,196,154,0.14)] transition enabled:hover:bg-[#d4a574] disabled:cursor-not-allowed disabled:opacity-50">
-              {isSubmitting ? 'Starting M-Pesa payment…' : selectedEvent ? `Register and pay KES ${Number(selectedEvent.priceKsh).toLocaleString()}` : 'Select an available event'}
+            <button disabled={!selectedEvent || selectedTicketLines.length === 0 || missingChildren || isSubmitting || !!registrationId} type="submit" className="w-full rounded-lg bg-[#e8c49a] px-4 py-3 font-semibold text-[#12261b] shadow-[0_8px_20px_rgba(232,196,154,0.14)] transition enabled:hover:bg-[#d4a574] disabled:cursor-not-allowed disabled:opacity-50">
+              {isSubmitting ? 'Starting M-Pesa payment…' : selectedTicketLines.length > 0 ? `Register and pay KES ${totalPriceKsh.toLocaleString()}` : 'Select tickets to continue'}
             </button>
-            <p className="text-xs text-slate-500">The server uses the event price stored in the database. Approve the STK prompt on the M-Pesa phone number you entered.</p>
+            <p className="text-xs text-slate-500">The server charges the saved price for your selected ticket type. Approve the STK prompt on the M-Pesa phone number you entered.</p>
           </form>
 
           <aside className="w-full rounded-2xl border border-[#3d5d4b] bg-[#193324] p-4 shadow-[0_18px_44px_rgba(0,0,0,0.18)] sm:p-6">
@@ -440,9 +604,14 @@ export default function RegisterPage() {
                 <h2 className="mt-3 text-2xl font-bold text-white">{selectedEvent.title}</h2>
                 <p className="mt-2 text-sm text-slate-300">{selectedEvent.date}</p>
                 <p className="mt-1 text-sm text-slate-300">{selectedEvent.location}</p>
-                <p className="mt-4 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200">
-                  Ticket price: KES {Number(selectedEvent.priceKsh ?? 0).toLocaleString()}
-                </p>
+                <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-200">
+                  <p className="font-medium">Ticket total: KES {totalPriceKsh.toLocaleString()}</p>
+                  {selectedTicketLines.map((line) => (
+                    <p key={line.option.name} className="mt-1 text-xs text-slate-400">
+                      {line.option.name} × {line.quantity}: KES {line.lineTotal.toLocaleString()}
+                    </p>
+                  ))}
+                </div>
               </>
             ) : (
               <p className="mt-3 text-sm text-slate-300">

@@ -179,6 +179,11 @@ export class EventTicketEmailService implements OnModuleDestroy {
         eventDate,
         eventLocation,
         ticketType: registration.ticketType,
+        ticketSelections: registration.ticketSelections,
+        amountKsh: registration.amountKsh,
+        childName: registration.childName,
+        childAge: registration.childAge,
+        childDetails: registration.ticketSelections?.flatMap((selection) => selection.childDetails) ?? [],
         ticketCode,
         poster: eventPoster,
       }, qrCode);
@@ -187,6 +192,17 @@ export class EventTicketEmailService implements OnModuleDestroy {
       const escapedEventDate = escapeHtml(eventDate);
       const escapedEventLocation = escapeHtml(eventLocation);
       const ticketType = escapeHtml(registration.ticketType);
+      const children = registration.ticketSelections?.flatMap((selection) => selection.childDetails) ?? [];
+      const childDetails = children.length
+        ? children.map((child) => `<p style="margin:8px 0"><strong>Child:</strong> ${escapeHtml(child.name)} (age ${child.age})</p>`).join('')
+        : registration.childName
+          ? `<p style="margin:8px 0"><strong>Child:</strong> ${escapeHtml(registration.childName)} (age ${registration.childAge})</p>`
+          : '';
+      const ticketLines = registration.ticketSelections?.length
+        ? registration.ticketSelections.map((selection) =>
+            `<p style="margin:8px 0">${escapeHtml(selection.ticketType)} × ${selection.quantity}: KES ${selection.lineTotalKsh.toLocaleString()}</p>`,
+          ).join('')
+        : '';
       const safeTicketCode = escapeHtml(ticketCode);
       const eventPosterUrl = getAllowedEventPosterUrl(registration.event.posterUrl);
       const text = [
@@ -197,6 +213,16 @@ export class EventTicketEmailService implements OnModuleDestroy {
         `Date: ${eventDate}`,
         `Location: ${eventLocation}`,
         `Ticket type: ${registration.ticketType}`,
+        ...(registration.ticketSelections?.length
+          ? registration.ticketSelections.map((selection) =>
+              `${selection.ticketType} x ${selection.quantity}: KES ${selection.lineTotalKsh.toLocaleString()}`,
+            )
+          : []),
+        ...(registration.ticketSelections?.flatMap((selection) => selection.childDetails).length
+          ? registration.ticketSelections.flatMap((selection) => selection.childDetails)
+              .map((child) => `Child: ${child.name} (age ${child.age})`)
+          : registration.childName ? [`Child: ${registration.childName} (age ${registration.childAge})`] : []),
+        ...(registration.amountKsh !== null ? [`Total: KES ${registration.amountKsh?.toLocaleString()}`] : []),
         `Ticket code: ${ticketCode}`,
         '',
         'Your PDF ticket includes your name, email, event details, ticket type, ticket code, and QR code. Please open the PDF and present the QR code at check-in.',
@@ -227,6 +253,9 @@ export class EventTicketEmailService implements OnModuleDestroy {
                     <p style="margin:8px 0"><strong>Date:</strong> ${escapedEventDate}</p>
                     <p style="margin:8px 0"><strong>Location:</strong> ${escapedEventLocation}</p>
                     <p style="margin:8px 0"><strong>Ticket type:</strong> ${ticketType}</p>
+                    ${ticketLines}
+                    ${childDetails}
+                    ${registration.amountKsh !== null ? `<p style="margin:18px 0 0;padding-top:14px;border-top:1px solid rgba(58,107,74,.15)"><strong>Total:</strong> KES ${registration.amountKsh?.toLocaleString()}</p>` : ''}
                     <p style="margin:18px 0 0;padding-top:14px;border-top:1px solid rgba(58,107,74,.15)"><strong>Ticket code:</strong><br><span style="font-family:monospace;font-size:14px;color:#2a4e36">${safeTicketCode}</span></p>
                   </div>
                   <p style="margin:22px 0 0;color:#4a4a4a;line-height:1.6">Your QR code is included in the attached PDF. Please open the PDF and have it ready at check-in.</p>

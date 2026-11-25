@@ -5,6 +5,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { EventRegistration } from '../event-registrations/event-registration.entity';
 import { EventTicketEmailService } from '../event-registrations/event-ticket-email.service';
+import { findEventTicketOption } from '../events/event-ticket-options';
 import { Ticket } from '../tickets/ticket.entity';
 import { Payment } from './payment.entity';
 
@@ -158,9 +159,12 @@ export class PaymentsService implements OnModuleInit {
       throw new ConflictException('This event registration has already been paid.');
     }
 
-    const amountKsh = Number(registration.event.priceKsh);
+    const ticketOption = findEventTicketOption(registration.event, registration.ticketType);
+    const amountKsh = registration.amountKsh !== null && registration.amountKsh !== undefined
+      ? Number(registration.amountKsh)
+      : Number(ticketOption?.priceKsh);
     if (!Number.isInteger(amountKsh) || amountKsh < 1 || amountKsh > 250000) {
-      throw new BadRequestException('The event price must be a whole KES amount between 1 and 250,000 to accept payment.');
+      throw new BadRequestException('The selected ticket type is no longer available for this event.');
     }
 
     const existingPending = await this.paymentsRepository.findOne({

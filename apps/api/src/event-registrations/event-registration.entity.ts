@@ -24,6 +24,25 @@ export class EventRegistration {
   @Column({ default: 'General Admission' })
   ticketType: string;
 
+  @Column({ name: 'child_name', type: 'varchar', length: 120, nullable: true })
+  childName: string | null;
+
+  @Column({ name: 'child_age', type: 'integer', nullable: true })
+  childAge: number | null;
+
+  @Column({ name: 'ticket_selections', type: 'simple-json', nullable: true })
+  ticketSelections: {
+    ticketType: string;
+    quantity: number;
+    unitPriceKsh: number;
+    lineTotalKsh: number;
+    pricingMode: 'per_person' | 'family_bundle';
+    childDetails: { name: string; age: number }[];
+  }[] | null;
+
+  @Column({ name: 'amount_ksh', type: 'integer', nullable: true })
+  amountKsh: number | null;
+
   @Column({ type: 'text', nullable: true })
   expectations: string;
 
@@ -51,7 +70,7 @@ export class EventRegistration {
   @Column({ type: 'text', nullable: true })
   ticketEmailError?: string | null;
 
-  @ManyToOne(() => EventEntity, (event) => event.registrations, { onDelete: 'CASCADE', eager: true })
+  @ManyToOne(() => EventEntity, (event) => event.registrations, { onDelete: 'RESTRICT', eager: true })
   @JoinColumn({ name: 'event_id' })
   event: EventEntity;
 
